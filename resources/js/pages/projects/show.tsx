@@ -93,7 +93,9 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                 )}
                             </div>
 
-                            {canCreateTask && taskStoreUrl ? (
+                            {canCreateTask &&
+                            taskStoreUrl &&
+                            column.category !== 'done' ? (
                                 <details className="rounded-lg border bg-background p-3">
                                     <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                                         <Plus aria-hidden="true" className="size-4" />
@@ -126,8 +128,17 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                         name="title"
                                                         maxLength={160}
                                                         required
+                                                        aria-invalid={Boolean(errors.title)}
+                                                        aria-describedby={
+                                                            errors.title
+                                                                ? `task-title-error-${column.id}`
+                                                                : undefined
+                                                        }
                                                     />
-                                                    <InputError message={errors.title} />
+                                                    <InputError
+                                                        id={`task-title-error-${column.id}`}
+                                                        message={errors.title}
+                                                    />
                                                 </div>
                                                 <div className="grid gap-2">
                                                     <Label htmlFor={`task-description-${column.id}`}>
@@ -138,9 +149,18 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                         name="description"
                                                         maxLength={5000}
                                                         rows={3}
+                                                        aria-invalid={Boolean(errors.description)}
+                                                        aria-describedby={
+                                                            errors.description
+                                                                ? `task-description-error-${column.id}`
+                                                                : undefined
+                                                        }
                                                         className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
                                                     />
-                                                    <InputError message={errors.description} />
+                                                    <InputError
+                                                        id={`task-description-error-${column.id}`}
+                                                        message={errors.description}
+                                                    />
                                                 </div>
                                                 <Button type="submit" disabled={processing}>
                                                     Crear tarea

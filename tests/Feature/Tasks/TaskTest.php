@@ -126,3 +126,25 @@ test('task titles are required and bounded', function () {
 
     $this->assertDatabaseCount('tasks', 0);
 });
+
+test('task creation rejects the done column to preserve explicit completion', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto terminado']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $doneColumn = $board->columns()->where('category', 'done')->firstOrFail();
+
+    $this->actingAs($owner)
+        ->post(route('tasks.store', [$workspace, $project->slug]), [
+            'title' => 'Evitar el cierre implícito',
+            'board_id' => $board->id,
+            'column_id' => $doneColumn->id,
+        ])
+        ->assertSessionHasErrors('column_id');
+
+    $this->assertDatabaseCount('tasks', 0);
+});

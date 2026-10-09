@@ -17,6 +17,7 @@ Route::prefix('{current_workspace}')
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
         Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->name('tasks.store');
+        Route::post('projects/{project}/tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
     });
 
 Route::middleware(['auth'])->group(function () {

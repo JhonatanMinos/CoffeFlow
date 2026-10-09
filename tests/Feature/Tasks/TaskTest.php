@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\WorkspaceRole;
 use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Project;
@@ -79,6 +80,42 @@ test('outsiders cannot create or observe project tasks', function () {
     $target = $board->columns()->where('category', 'in_progress')->firstOrFail();
 
     $this->actingAs($outsider)
+        ->post(route('tasks.move', [$workspace, $project->slug, $task->id]), [
+            'column_id' => $target->id,
+        ])
+        ->assertForbidden();
+
+    $this->assertDatabaseHas('tasks', ['id' => $task->id, 'column_id' => $column->id]);
+});
+
+test('guests can view projects but cannot create or move tasks', function () {
+    $owner = User::factory()->create();
+    $guest = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto invitado']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $column = $board->columns()->where('category', 'todo')->firstOrFail();
+    $target = $board->columns()->where('category', 'in_progress')->firstOrFail();
+    $workspace->members()->attach($guest, ['role' => WorkspaceRole::Guest->value]);
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($guest)
+        ->get(route('projects.show', [$workspace, $project->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('projects/show')
+            ->where('canCreateTask', false),
+        );
+
+    $this->actingAs($guest)
         ->post(route('tasks.move', [$workspace, $project->slug, $task->id]), [
             'column_id' => $target->id,
         ])

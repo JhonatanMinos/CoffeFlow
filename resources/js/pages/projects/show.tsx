@@ -80,7 +80,9 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                     {task.description}
                                                 </p>
                                             ) : null}
-                                            {column.category !== 'done' && taskStoreUrl ? (
+                                            {canCreateTask &&
+                                            column.category !== 'done' &&
+                                            taskStoreUrl ? (
                                                 <Form
                                                     action={`${taskStoreUrl}/${task.id}/move`}
                                                     method="post"
@@ -164,6 +166,11 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                     type="hidden"
                                                     name="column_id"
                                                     value={column.id}
+                                                />
+                                                <InputError
+                                                    id={`task-column-error-${column.id}`}
+                                                    role="alert"
+                                                    message={errors.column_id}
                                                 />
                                                 <div className="grid gap-2">
                                                     <Label htmlFor={`task-title-${column.id}`}>

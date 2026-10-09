@@ -80,6 +80,52 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                     {task.description}
                                                 </p>
                                             ) : null}
+                                            {column.category !== 'done' && taskStoreUrl ? (
+                                                <Form
+                                                    action={`${taskStoreUrl}/${task.id}/move`}
+                                                    method="post"
+                                                    className="mt-3 grid gap-2"
+                                                >
+                                                    {({ errors, processing }) => (
+                                                        <>
+                                                            <Label htmlFor={`task-move-${task.id}`}>
+                                                                Mover a
+                                                            </Label>
+                                                            <select
+                                                                id={`task-move-${task.id}`}
+                                                                name="column_id"
+                                                                defaultValue={column.id}
+                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                aria-describedby={
+                                                                    errors.column_id
+                                                                        ? `task-move-error-${task.id}`
+                                                                        : undefined
+                                                                }
+                                                                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                                            >
+                                                                {board.columns
+                                                                    .filter((target) => target.category !== 'done')
+                                                                    .map((target) => (
+                                                                        <option key={target.id} value={target.id}>
+                                                                            {target.name}
+                                                                        </option>
+                                                                    ))}
+                                                            </select>
+                                                            <InputError
+                                                                id={`task-move-error-${task.id}`}
+                                                                message={errors.column_id}
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                disabled={processing}
+                                                            >
+                                                                Mover
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
+                                            ) : null}
                                         </article>
                                     ))
                                 ) : (

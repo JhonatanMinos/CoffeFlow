@@ -6,6 +6,7 @@ use App\Actions\Projects\CreateProject;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,7 +79,10 @@ class ProjectController extends Controller
         $board = $projectModel->boards()
             ->select(['id', 'project_id', 'name', 'slug', 'is_default'])
             ->where('is_default', true)
-            ->with(['columns:id,board_id,name,category,position,wip_limit'])
+            ->with([
+                'columns:id,board_id,name,category,position,wip_limit',
+                'columns.tasks:id,column_id,title,description',
+            ])
             ->firstOrFail();
 
         return Inertia::render('projects/show', [
@@ -99,8 +103,14 @@ class ProjectController extends Controller
                     'category' => $column->category->value,
                     'position' => $column->position,
                     'wipLimit' => $column->wip_limit,
+                    'tasks' => $column->tasks->map(fn ($task) => [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'description' => $task->description,
+                    ]),
                 ]),
             ],
+            'canCreateTask' => Gate::allows('create', [Task::class, $projectModel]),
         ]);
     }
 

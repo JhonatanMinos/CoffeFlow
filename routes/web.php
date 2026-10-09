@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Projects\ProjectController;
+use App\Http\Controllers\Tasks\TaskController;
 use App\Http\Controllers\Workspaces\WorkspaceInvitationController;
 use App\Http\Middleware\EnsureWorkspaceMembership;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,7 @@ Route::prefix('{current_workspace}')
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
+        Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->name('tasks.store');
     });
 
 Route::middleware(['auth'])->group(function () {

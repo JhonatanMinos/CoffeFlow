@@ -2,6 +2,7 @@
 
 namespace App\Actions\Tasks;
 
+use App\Enums\BoardColumnCategory;
 use App\Models\Board;
 use App\Models\BoardColumn;
 use App\Models\Project;
@@ -32,6 +33,12 @@ class CreateTask
         if (! $column) {
             throw ValidationException::withMessages([
                 'column_id' => 'La columna no pertenece al tablero seleccionado.',
+            ]);
+        }
+
+        if ($column->category === BoardColumnCategory::Done) {
+            throw ValidationException::withMessages([
+                'column_id' => 'Las tareas solo se finalizan mediante la acción explícita de completar.',
             ]);
         }
 

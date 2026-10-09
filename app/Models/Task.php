@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property int $created_by
  * @property string $title
  * @property string|null $description
+ * @property Carbon|null $completed_at
+ * @property int|null $completed_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Project $project
@@ -27,6 +29,14 @@ class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */
     use HasFactory;
+
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            'completed_at' => 'datetime',
+        ];
+    }
 
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo

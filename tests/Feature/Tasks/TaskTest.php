@@ -6,6 +6,7 @@ use App\Models\BoardColumn;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('workspace members can create and see tasks grouped in a project board column', function () {
@@ -408,4 +409,156 @@ test('task creation rejects a full WIP-limited column', function () {
         ->assertSessionHasErrors('column_id');
 
     $this->assertDatabaseCount('tasks', 1);
+});
+
+test('authorized users can manually complete a task into its done column', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto finalización']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $source = $board->columns()->where('category', 'todo')->firstOrFail();
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]))
+        ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
+
+    $completedTask = $task->fresh();
+    expect($completedTask->column_id)->toBe($done->id)
+        ->and($completedTask->completed_by)->toBe($owner->id)
+        ->and($completedTask->completed_at)->not->toBeNull();
+});
+
+test('guests and outsiders cannot manually complete tasks', function () {
+    $owner = User::factory()->create();
+    $guest = User::factory()->create();
+    $outsider = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto autorizado']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $source = $board->columns()->where('category', 'todo')->firstOrFail();
+    $workspace->members()->attach($guest, ['role' => WorkspaceRole::Guest->value]);
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($guest)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]))
+        ->assertForbidden();
+
+    $this->actingAs($outsider)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]))
+        ->assertForbidden();
+
+    expect($task->fresh()->column_id)->toBe($source->id)
+        ->and($task->fresh()->completed_at)->toBeNull()
+        ->and($task->fresh()->completed_by)->toBeNull();
+});
+
+test('completion cannot resolve a task through a different project', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto original']);
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Otro proyecto']);
+
+    $projects = Project::where('workspace_id', $workspace->id)->orderBy('id')->get();
+    $project = $projects->firstOrFail();
+    $otherProject = $projects->last();
+    $source = $project->boards()->firstOrFail()->columns()->where('category', 'todo')->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $otherProject->slug, $task->id]))
+        ->assertNotFound();
+
+    expect($task->fresh()->column_id)->toBe($source->id)
+        ->and($task->fresh()->completed_at)->toBeNull()
+        ->and($task->fresh()->completed_by)->toBeNull();
+});
+
+test('repeated completion preserves the original author and timestamp', function () {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto idempotencia']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $source = $project->boards()->firstOrFail()->columns()->where('category', 'todo')->firstOrFail();
+    $workspace->members()->attach($member, ['role' => WorkspaceRole::Member->value]);
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->travelTo(Carbon::parse('2026-10-09 12:00:00'));
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]));
+
+    $completedAt = $task->fresh()->completed_at;
+    $this->travel(5)->minutes();
+
+    $this->actingAs($member)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]))
+        ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
+
+    expect($task->fresh()->completed_by)->toBe($owner->id)
+        ->and($task->fresh()->completed_at->equalTo($completedAt))->toBeTrue();
+});
+
+test('completion rejects a full done column without changing the task', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+
+    $this->actingAs($owner)
+        ->post(route('projects.store', $workspace), ['name' => 'Proyecto WIP terminado']);
+
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $source = $board->columns()->where('category', 'todo')->firstOrFail();
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $done->update(['wip_limit' => 1]);
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+    Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $done->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $task->id]))
+        ->assertSessionHasErrors('column_id');
+
+    expect($task->fresh()->column_id)->toBe($source->id)
+        ->and($task->fresh()->completed_at)->toBeNull()
+        ->and($task->fresh()->completed_by)->toBeNull();
+    $this->assertDatabaseCount('tasks', 2);
 });

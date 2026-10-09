@@ -112,10 +112,10 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ### KT-03 — Finalizar tareas manualmente
 
-- [ ] Implementar el caso de uso explícito de finalización.
-- [ ] Mantener columna, `completed_at` y `completed_by` coherentes.
-- [ ] Exponer un control manual accesible.
-- [ ] Probar autorización, idempotencia y ausencia de finalización implícita.
+- [x] Implementar el caso de uso explícito de finalización.
+- [x] Mantener columna, `completed_at` y `completed_by` coherentes.
+- [x] Exponer un control manual accesible.
+- [x] Probar autorización, idempotencia y ausencia de finalización implícita.
 
 **Ruta:** delegada; comportamiento vertical backend/frontend con pruebas.
 
@@ -127,13 +127,28 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 **Verificación:** prueba Pest enfocada de finalización; formateo configurado; build frontend.
 
-**Evidencia:** pendiente.
+**Evidencia:**
+
+- Implementación: `6905a74` (`feat(tasks): add manual task completion`).
+- RED: las pruebas de finalización fallaron inicialmente porque no existía `tasks.complete`; la guardia previa de movimiento a `done` permaneció verde.
+- GREEN: `php artisan test tests/Feature/Tasks/TaskTest.php` — 18 pruebas, 93 aserciones.
+- `vendor/bin/pint --test` — correcto.
+- `npm run build` — correcto; aviso no bloqueante por `fontaine` opcional ausente.
+- Verificación independiente — aprobada sin bloqueantes.
+- Spot check del padre — 18 pruebas, 93 aserciones.
+- RDD — no disponible: el ejecutable `gentle-ai` no existe en el entorno; riesgo tratado como alto y cubierto mediante verificación independiente.
+- Concurrencia: la tarea y la columna `done` se bloquean dentro de la transacción; falta una prueba concurrente real sobre PostgreSQL.
+- Conteo KT-03: 341 líneas autorales.
 
 ## Progreso
 
-- KT-01 y KT-02 completadas y verificadas; KT-03 pendiente.
+- KT-01, KT-02 y KT-03 completadas y verificadas.
 - Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01, KT-02 y KT-03 porque el runtime no expone el `gpt-6.1-luna` configurado.
 - Primer límite de slice previsto: `f783204` + `6a2b84e` + `86c0376`; todavía no se creó ni publicó ningún PR.
 - Segundo límite de slice previsto: `d410ba1` + `2093884`; todavía no se creó ni publicó ningún PR.
+- Tercer límite de slice previsto: `6905a74`; todavía no se creó ni publicó ningún PR.
 - Los slices KT-01 y KT-02 superan el presupuesto orientativo de 400 líneas como unidades verticales cohesivas; antes de crear PRs se debe resolver `size:exception` o una separación adicional que no rompa comportamiento y pruebas.
-- Próximo paso: ejecutar KT-03 para finalización manual.
+- Conteo acumulado de commits de trabajo KT-01 + KT-02 + KT-03: 1417 líneas autorales.
+- Verificación integral: `php artisan test` — 118 pruebas, 482 aserciones; `vendor/bin/pint --test` y `npm run build` correctos, sin fallos ni skips.
+- Rollback por dependencia: KT-03 → KT-02 → KT-01; las migraciones requieren respaldo si existen datos desplegados.
+- Próximo paso: decidir el tratamiento de tamaño para los slices KT-01/KT-02 antes de crear o publicar la cadena de PRs.

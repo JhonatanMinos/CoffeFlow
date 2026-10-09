@@ -49,10 +49,10 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ### KT-01 — Crear y mostrar tareas
 
-- [ ] Añadir persistencia y relaciones del dominio de tareas.
-- [ ] Añadir autorización, validación y acción de creación.
-- [ ] Renderizar tarjetas agrupadas por columna con estados accesibles.
-- [ ] Probar creación, aislamiento por workspace y coherencia proyecto/tablero/columna.
+- [x] Añadir persistencia y relaciones del dominio de tareas.
+- [x] Añadir autorización, validación y acción de creación.
+- [x] Renderizar tarjetas agrupadas por columna con estados accesibles.
+- [x] Probar creación, aislamiento por workspace y coherencia proyecto/tablero/columna.
 
 **Ruta:** delegada; múltiples archivos no triviales y lectura preparatoria.
 
@@ -64,7 +64,19 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 **Verificación:** prueba Pest enfocada del flujo de tareas; formateo configurado; build frontend si cambia la página.
 
-**Evidencia:** pendiente.
+**Evidencia:**
+
+- Implementación: `6a2b84e` (`feat(tasks): create and display project tasks`).
+- Corrección: `86c0376` (`fix(tasks): prevent implicit completion during creation`).
+- RED: la suite falló inicialmente porque no existía `tasks.store`; la regresión posterior falló porque crear en `done` no producía error.
+- GREEN: `php artisan test tests/Feature/Tasks/TaskTest.php` — 5 pruebas, 31 aserciones.
+- `vendor/bin/pint --test` — correcto.
+- `npm run build` — correcto; aviso no bloqueante por `fontaine` opcional ausente.
+- Verificación independiente — aprobada sin bloqueantes tras impedir creación directa en `done` y asociar errores accesibles.
+- Spot check del padre — 5 pruebas, 31 aserciones.
+- RDD — no disponible: el ejecutable `gentle-ai` no existe en el entorno; riesgo tratado como alto y cubierto mediante verificación independiente.
+- Alcance adicional confirmado: el cambio mínimo en `ProjectController` es necesario para cargar tarjetas y capacidad de creación; no expande el comportamiento autorizado.
+- Conteo acumulado de commits de trabajo: 588 líneas autorales; diff neto de KT-01: 582 líneas.
 
 ### KT-02 — Mover tareas y aplicar WIP
 
@@ -106,6 +118,8 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ## Progreso
 
-- Documento creado y estrategia de encadenamiento elegida; implementación pendiente.
-- Próximo paso: ejecutar KT-01.
+- KT-01 completada y verificada; KT-02 y KT-03 pendientes.
+- Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01 porque el runtime no expone el `gpt-6.1-luna` configurado.
+- Primer límite de slice previsto: `f783204` + `6a2b84e` + `86c0376`; todavía no se creó ni publicó ningún PR.
+- Próximo paso: ejecutar KT-02 para movimiento de tareas y límites WIP.
 

@@ -80,10 +80,10 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ### KT-02 — Mover tareas y aplicar WIP
 
-- [ ] Implementar movimiento autorizado entre columnas del mismo tablero.
-- [ ] Aplicar el límite WIP en el servidor dentro de una transacción.
-- [ ] Exponer controles accesibles para mover tarjetas.
-- [ ] Probar movimientos válidos, cruces de alcance y rechazo por WIP.
+- [x] Implementar movimiento autorizado entre columnas del mismo tablero.
+- [x] Aplicar el límite WIP en el servidor dentro de una transacción.
+- [x] Exponer controles accesibles para mover tarjetas.
+- [x] Probar movimientos válidos, cruces de alcance y rechazo por WIP.
 
 **Ruta:** delegada; lógica concurrente y cambios backend/frontend.
 
@@ -95,7 +95,20 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 **Verificación:** prueba Pest enfocada de movimiento/WIP; formateo configurado; build frontend.
 
-**Evidencia:** pendiente.
+**Evidencia:**
+
+- Implementación: `d410ba1` (`feat(tasks): move tasks with transactional WIP limits`).
+- Corrección: `2093884` (`fix(tasks): expose WIP errors and gate move controls`).
+- RED: faltaba la ruta de movimiento, la creación no respetaba WIP y se permitía mover desde `done`.
+- GREEN: `php artisan test tests/Feature/Tasks/TaskTest.php` — 13 pruebas, 69 aserciones.
+- `vendor/bin/pint --test` — correcto.
+- `npm run build` — correcto; aviso no bloqueante por `fontaine` opcional ausente.
+- Verificación independiente — aprobada tras mostrar el error WIP de creación y ocultar controles de movimiento sin capacidad.
+- Spot check del padre — 13 pruebas, 69 aserciones.
+- RDD — no disponible: el ejecutable `gentle-ai` no existe en el entorno; riesgo tratado como alto y cubierto mediante verificación independiente.
+- Concurrencia: creación y movimiento bloquean la columna destino antes de contar; falta una prueba concurrente real sobre PostgreSQL.
+- Conteo KT-02: 488 líneas autorales acumuladas por commits; diff neto de la tarea: 486 líneas.
+- Conteo acumulado de commits de trabajo KT-01 + KT-02: 1076 líneas autorales.
 
 ### KT-03 — Finalizar tareas manualmente
 
@@ -118,8 +131,9 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ## Progreso
 
-- KT-01 completada y verificada; KT-02 y KT-03 pendientes.
-- Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01 porque el runtime no expone el `gpt-6.1-luna` configurado.
+- KT-01 y KT-02 completadas y verificadas; KT-03 pendiente.
+- Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01, KT-02 y KT-03 porque el runtime no expone el `gpt-6.1-luna` configurado.
 - Primer límite de slice previsto: `f783204` + `6a2b84e` + `86c0376`; todavía no se creó ni publicó ningún PR.
-- Próximo paso: ejecutar KT-02 para movimiento de tareas y límites WIP.
-
+- Segundo límite de slice previsto: `d410ba1` + `2093884`; todavía no se creó ni publicó ningún PR.
+- Los slices KT-01 y KT-02 superan el presupuesto orientativo de 400 líneas como unidades verticales cohesivas; antes de crear PRs se debe resolver `size:exception` o una separación adicional que no rompa comportamiento y pruebas.
+- Próximo paso: ejecutar KT-03 para finalización manual.

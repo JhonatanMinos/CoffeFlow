@@ -26,14 +26,16 @@ type Props = {
                     id: number;
                     title: string;
                     description: string | null;
+                    completedAt: string | null;
                 }>;
             }
         >;
     };
     canCreateTask: boolean;
+    canCompleteTasks: boolean;
 };
 
-export default function ProjectShow({ project, board, canCreateTask }: Props) {
+export default function ProjectShow({ project, board, canCreateTask, canCompleteTasks }: Props) {
     const { currentWorkspace } = usePage().props;
     const taskStoreUrl = currentWorkspace
         ? `/${encodeURIComponent(currentWorkspace.slug)}/projects/${encodeURIComponent(project.slug)}/tasks`
@@ -123,6 +125,37 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                                 disabled={processing}
                                                             >
                                                                 Mover
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
+                                            ) : null}
+                                            {canCompleteTasks &&
+                                            task.completedAt === null &&
+                                            taskStoreUrl ? (
+                                                <Form
+                                                    action={`${taskStoreUrl}/${task.id}/complete`}
+                                                    method="post"
+                                                    className="mt-3 grid gap-2"
+                                                >
+                                                    {({ errors, processing }) => (
+                                                        <>
+                                                            <InputError
+                                                                id={`task-complete-error-${task.id}`}
+                                                                role="alert"
+                                                                message={errors.column_id}
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={processing}
+                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                aria-describedby={
+                                                                    errors.column_id
+                                                                        ? `task-complete-error-${task.id}`
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                Completar tarea
                                                             </Button>
                                                         </>
                                                     )}

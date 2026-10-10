@@ -8,6 +8,74 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
+
+test('dashboard exposes the current users active focus session', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+
+    $this->actingAs($user)
+        ->get(route('dashboard', $workspace))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('dashboard')
+            ->where('activeFocusSession', null),
+        );
+
+    $session = FocusSession::create([
+        'user_id' => $user->id,
+        'status' => 'running',
+        'started_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard', $workspace))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('dashboard')
+            ->where('activeFocusSession.id', $session->id)
+            ->where('activeFocusSession.status', 'running')
+            ->where('activeFocusSession.taskId', null),
+        );
+});
+
+test('project board exposes the current users active task-linked focus session', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $this->actingAs($user)->post(route('projects.store', $workspace), ['name' => 'Focus board']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $board->columns()->firstOrFail()->id,
+        'created_by' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('projects.show', [$workspace, $project->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('projects/show')
+            ->where('activeFocusSession', null),
+        );
+
+    $session = FocusSession::create([
+        'user_id' => $user->id,
+        'task_id' => $task->id,
+        'status' => 'paused',
+        'started_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('projects.show', [$workspace, $project->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('projects/show')
+            ->where('activeFocusSession.id', $session->id)
+            ->where('activeFocusSession.status', 'paused')
+            ->where('activeFocusSession.taskId', $task->id),
+        );
+});
 
 test('an authenticated user can start a free focus session', function () {
     $user = User::factory()->create();
@@ -43,8 +111,9 @@ test('a workspace member can start a focus session linked to an accessible task'
     ]);
 
     $this->actingAs($member)
+        ->withHeader('referer', route('projects.show', [$workspace, $project->slug]))
         ->post(route('focus-sessions.store', $workspace), ['task_id' => $task->id])
-        ->assertRedirect();
+        ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
 
     $this->assertDatabaseHas('focus_sessions', [
         'user_id' => $member->id,

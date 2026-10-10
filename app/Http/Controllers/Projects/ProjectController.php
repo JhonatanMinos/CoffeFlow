@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\CreateProject;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\StoreProjectRequest;
+use App\Models\FocusSession;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Workspace;
@@ -85,6 +86,12 @@ class ProjectController extends Controller
             ])
             ->firstOrFail();
 
+        $activeFocusSession = FocusSession::query()
+            ->select(['id', 'task_id', 'status'])
+            ->where('user_id', $request->user()->id)
+            ->whereIn('status', ['running', 'paused'])
+            ->first();
+
         return Inertia::render('projects/show', [
             'project' => [
                 'id' => $projectModel->id,
@@ -113,6 +120,11 @@ class ProjectController extends Controller
             ],
             'canCreateTask' => Gate::allows('create', [Task::class, $projectModel]),
             'canCompleteTasks' => Gate::allows('complete', [Task::class, $projectModel]),
+            'activeFocusSession' => $activeFocusSession ? [
+                'id' => $activeFocusSession->id,
+                'taskId' => $activeFocusSession->task_id,
+                'status' => $activeFocusSession->status,
+            ] : null,
         ]);
     }
 

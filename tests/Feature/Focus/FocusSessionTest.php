@@ -90,6 +90,17 @@ test('focus session start rejects malformed task identifiers', function () {
     $this->assertDatabaseCount('focus_sessions', 0);
 });
 
+test('a zero task identifier is not treated as a free focus session', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+
+    $this->actingAs($user)
+        ->post(route('focus-sessions.store', $workspace), ['task_id' => 0])
+        ->assertNotFound();
+
+    $this->assertDatabaseCount('focus_sessions', 0);
+});
+
 test('a user cannot start a second active focus session', function () {
     $user = User::factory()->create();
     $workspace = $user->personalWorkspace();

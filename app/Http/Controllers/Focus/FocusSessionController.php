@@ -20,7 +20,7 @@ class FocusSessionController extends Controller
         abort_if(! $workspace instanceof Workspace, 404);
 
         $task = null;
-        if ($taskId = $request->validated('task_id')) {
+        if (($taskId = $request->validated('task_id')) !== null) {
             $task = Task::query()
                 ->whereHas('project', fn ($query) => $query->where('workspace_id', $workspace->id))
                 ->whereKey($taskId)

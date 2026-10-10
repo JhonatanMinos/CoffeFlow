@@ -29,6 +29,7 @@ use Illuminate\Support\Str;
  * @property-read Workspace $workspace
  * @property-read User $creator
  * @property-read Collection<int, Board> $boards
+ * @property-read Collection<int, Task> $tasks
  */
 #[Fillable(['workspace_id', 'created_by', 'name', 'slug', 'methodology', 'status'])]
 class Project extends Model
@@ -61,6 +62,12 @@ class Project extends Model
     public function boards(): HasMany
     {
         return $this->hasMany(Board::class);
+    }
+
+    /** @return HasMany<Task, $this> */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
     }
 
     protected function casts(): array

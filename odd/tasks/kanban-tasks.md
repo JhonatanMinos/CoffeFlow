@@ -80,10 +80,10 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 ### KT-02 — Mover tareas y aplicar WIP
 
-- [ ] Implementar movimiento autorizado entre columnas del mismo tablero.
-- [ ] Aplicar el límite WIP en el servidor dentro de una transacción.
-- [ ] Exponer controles accesibles para mover tarjetas.
-- [ ] Probar movimientos válidos, cruces de alcance y rechazo por WIP.
+- [x] Implementar movimiento autorizado entre columnas del mismo tablero.
+- [x] Aplicar el límite WIP en el servidor dentro de una transacción.
+- [x] Exponer controles accesibles para mover tarjetas.
+- [x] Probar movimientos válidos, cruces de alcance y rechazo por WIP.
 
 **Ruta:** delegada; lógica concurrente y cambios backend/frontend.
 
@@ -95,14 +95,27 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 **Verificación:** prueba Pest enfocada de movimiento/WIP; formateo configurado; build frontend.
 
-**Evidencia:** pendiente.
+**Evidencia:**
+
+- Implementación: `d410ba1` (`feat(tasks): move tasks with transactional WIP limits`).
+- Corrección: `2093884` (`fix(tasks): expose WIP errors and gate move controls`).
+- RED: faltaba la ruta de movimiento, la creación no respetaba WIP y se permitía mover desde `done`.
+- GREEN: `php artisan test tests/Feature/Tasks/TaskTest.php` — 13 pruebas, 69 aserciones.
+- `vendor/bin/pint --test` — correcto.
+- `npm run build` — correcto; aviso no bloqueante por `fontaine` opcional ausente.
+- Verificación independiente — aprobada tras mostrar el error WIP de creación y ocultar controles de movimiento sin capacidad.
+- Spot check del padre — 13 pruebas, 69 aserciones.
+- RDD — no disponible: el ejecutable `gentle-ai` no existe en el entorno; riesgo tratado como alto y cubierto mediante verificación independiente.
+- Concurrencia: creación y movimiento bloquean la columna destino antes de contar; falta una prueba concurrente real sobre PostgreSQL.
+- Conteo KT-02: 488 líneas autorales acumuladas por commits; diff neto de la tarea: 486 líneas.
+- Conteo acumulado de commits de trabajo KT-01 + KT-02: 1076 líneas autorales.
 
 ### KT-03 — Finalizar tareas manualmente
 
-- [ ] Implementar el caso de uso explícito de finalización.
-- [ ] Mantener columna, `completed_at` y `completed_by` coherentes.
-- [ ] Exponer un control manual accesible.
-- [ ] Probar autorización, idempotencia y ausencia de finalización implícita.
+- [x] Implementar el caso de uso explícito de finalización.
+- [x] Mantener columna, `completed_at` y `completed_by` coherentes.
+- [x] Exponer un control manual accesible.
+- [x] Probar autorización, idempotencia y ausencia de finalización implícita.
 
 **Ruta:** delegada; comportamiento vertical backend/frontend con pruebas.
 
@@ -114,12 +127,41 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 
 **Verificación:** prueba Pest enfocada de finalización; formateo configurado; build frontend.
 
-**Evidencia:** pendiente.
+**Evidencia:**
+
+- Implementación: `6905a74` (`feat(tasks): add manual task completion`).
+- RED: las pruebas de finalización fallaron inicialmente porque no existía `tasks.complete`; la guardia previa de movimiento a `done` permaneció verde.
+- GREEN: `php artisan test tests/Feature/Tasks/TaskTest.php` — 18 pruebas, 93 aserciones.
+- `vendor/bin/pint --test` — correcto.
+- `npm run build` — correcto; aviso no bloqueante por `fontaine` opcional ausente.
+- Verificación independiente — aprobada sin bloqueantes.
+- Spot check del padre — 18 pruebas, 93 aserciones.
+- RDD — no disponible: el ejecutable `gentle-ai` no existe en el entorno; riesgo tratado como alto y cubierto mediante verificación independiente.
+- Concurrencia: la tarea y la columna `done` se bloquean dentro de la transacción; falta una prueba concurrente real sobre PostgreSQL.
+- Conteo KT-03: 341 líneas autorales.
 
 ## Progreso
 
-- KT-01 completada y verificada; KT-02 y KT-03 pendientes.
-- Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01 porque el runtime no expone el `gpt-6.1-luna` configurado.
+- KT-01, KT-02 y KT-03 completadas y verificadas.
+- Resolución de ejecución: el usuario autorizó `gpt-6-luna` para KT-01, KT-02 y KT-03 porque el runtime no expone el `gpt-6.1-luna` configurado.
 - Primer límite de slice previsto: `f783204` + `6a2b84e` + `86c0376`; todavía no se creó ni publicó ningún PR.
-- Próximo paso: ejecutar KT-02 para movimiento de tareas y límites WIP.
+- Segundo límite de slice previsto: `d410ba1` + `2093884`; todavía no se creó ni publicó ningún PR.
+- Tercer límite de slice previsto: `6905a74`; todavía no se creó ni publicó ningún PR.
+- Los slices KT-01 y KT-02 superan el presupuesto orientativo de 400 líneas como unidades verticales cohesivas; antes de crear PRs se debe resolver `size:exception` o una separación adicional que no rompa comportamiento y pruebas.
+- Decisión de entrega: el mantenedor aceptó `size:exception` para KT-01 (582 líneas) y KT-02 (486 líneas) porque cada slice conserva una unidad vertical cohesiva con sus pruebas.
+- Conteo acumulado de commits de trabajo KT-01 + KT-02 + KT-03: 1417 líneas autorales.
+- Verificación integral: `php artisan test` — 118 pruebas, 482 aserciones; `vendor/bin/pint --test` y `npm run build` correctos, sin fallos ni skips.
+- Rollback por dependencia: KT-03 → KT-02 → KT-01; las migraciones requieren respaldo si existen datos desplegados.
+- Próximo paso: crear el tracker en borrador y publicar los tres PRs hijos de la cadena `feature-branch-chain`.
 
+### Recuperación de la cadena sobre `main` vigente
+
+- La rama remota `main` vigente es `83f9339`. El historial previo basado en `8e665d4` no comparte un merge-base con esa rama; por eso se conservó intacto y se trasladó cada unidad mediante cherry-pick, sin modificar `main`.
+- Las referencias remotas antiguas se preservan sin cambios: `feature/kanban-tasks` en `1db7cf2` y `feature/kanban-tasks-tracker` en `f783204`.
+- Nueva cadena basada en `83f9339`: tracker `feature/kanban-tasks-chain` en `2a83c02`; KT-01 `feature/kanban-tasks-chain-01-create-display` en `cbc44c8`; KT-02 `feature/kanban-tasks-chain-02-move-wip` en `9cf8509`; KT-03 `feature/kanban-tasks-chain-03-complete` en `b147a42` antes de este registro.
+- Diff verificado por límites: tracker 111 líneas autorales; KT-01 610; KT-02 518; KT-03 371 antes de este registro y 383 incluyéndolo. Los diffs incluyen las actualizaciones de evidencia ODD correspondientes. KT-01 y KT-02 mantienen la excepción de tamaño aceptada para sus unidades verticales cohesivas.
+- No se crearon PRs: `gh` no está disponible y su instalación fue rechazada. La creación queda pendiente y manual; las URLs de comparación exactas son:
+  - Tracker: https://github.com/JhonatanMinos/CoffeFlow/compare/main...feature/kanban-tasks-chain?expand=1
+  - KT-01: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain...feature/kanban-tasks-chain-01-create-display?expand=1
+  - KT-02: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain-01-create-display...feature/kanban-tasks-chain-02-move-wip?expand=1
+  - KT-03: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain-02-move-wip...feature/kanban-tasks-chain-03-complete?expand=1

@@ -81,7 +81,7 @@ class ProjectController extends Controller
             ->where('is_default', true)
             ->with([
                 'columns:id,board_id,name,category,position,wip_limit',
-                'columns.tasks:id,column_id,title,description',
+                'columns.tasks:id,column_id,title,description,completed_at',
             ])
             ->firstOrFail();
 
@@ -107,10 +107,12 @@ class ProjectController extends Controller
                         'id' => $task->id,
                         'title' => $task->title,
                         'description' => $task->description,
+                        'completedAt' => $task->completed_at?->toISOString(),
                     ]),
                 ]),
             ],
             'canCreateTask' => Gate::allows('create', [Task::class, $projectModel]),
+            'canCompleteTasks' => Gate::allows('complete', [Task::class, $projectModel]),
         ]);
     }
 

@@ -26,14 +26,16 @@ type Props = {
                     id: number;
                     title: string;
                     description: string | null;
+                    completedAt: string | null;
                 }>;
             }
         >;
     };
     canCreateTask: boolean;
+    canCompleteTasks: boolean;
 };
 
-export default function ProjectShow({ project, board, canCreateTask }: Props) {
+export default function ProjectShow({ project, board, canCreateTask, canCompleteTasks }: Props) {
     const { currentWorkspace } = usePage().props;
     const taskStoreUrl = currentWorkspace
         ? `/${encodeURIComponent(currentWorkspace.slug)}/projects/${encodeURIComponent(project.slug)}/tasks`
@@ -80,6 +82,85 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                     {task.description}
                                                 </p>
                                             ) : null}
+                                            {canCreateTask &&
+                                            column.category !== 'done' &&
+                                            taskStoreUrl ? (
+                                                <Form
+                                                    action={`${taskStoreUrl}/${task.id}/move`}
+                                                    method="post"
+                                                    className="mt-3 grid gap-2"
+                                                >
+                                                    {({ errors, processing }) => (
+                                                        <>
+                                                            <Label htmlFor={`task-move-${task.id}`}>
+                                                                Mover a
+                                                            </Label>
+                                                            <select
+                                                                id={`task-move-${task.id}`}
+                                                                name="column_id"
+                                                                defaultValue={column.id}
+                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                aria-describedby={
+                                                                    errors.column_id
+                                                                        ? `task-move-error-${task.id}`
+                                                                        : undefined
+                                                                }
+                                                                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                                            >
+                                                                {board.columns
+                                                                    .filter((target) => target.category !== 'done')
+                                                                    .map((target) => (
+                                                                        <option key={target.id} value={target.id}>
+                                                                            {target.name}
+                                                                        </option>
+                                                                    ))}
+                                                            </select>
+                                                            <InputError
+                                                                id={`task-move-error-${task.id}`}
+                                                                message={errors.column_id}
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                disabled={processing}
+                                                            >
+                                                                Mover
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
+                                            ) : null}
+                                            {canCompleteTasks &&
+                                            task.completedAt === null &&
+                                            taskStoreUrl ? (
+                                                <Form
+                                                    action={`${taskStoreUrl}/${task.id}/complete`}
+                                                    method="post"
+                                                    className="mt-3 grid gap-2"
+                                                >
+                                                    {({ errors, processing }) => (
+                                                        <>
+                                                            <InputError
+                                                                id={`task-complete-error-${task.id}`}
+                                                                role="alert"
+                                                                message={errors.column_id}
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                disabled={processing}
+                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                aria-describedby={
+                                                                    errors.column_id
+                                                                        ? `task-complete-error-${task.id}`
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                Completar tarea
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
+                                            ) : null}
                                         </article>
                                     ))
                                 ) : (
@@ -118,6 +199,11 @@ export default function ProjectShow({ project, board, canCreateTask }: Props) {
                                                     type="hidden"
                                                     name="column_id"
                                                     value={column.id}
+                                                />
+                                                <InputError
+                                                    id={`task-column-error-${column.id}`}
+                                                    role="alert"
+                                                    message={errors.column_id}
                                                 />
                                                 <div className="grid gap-2">
                                                     <Label htmlFor={`task-title-${column.id}`}>

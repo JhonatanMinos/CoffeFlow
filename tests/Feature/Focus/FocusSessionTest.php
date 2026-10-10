@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 test('an authenticated user can start a free focus session', function () {
     $user = User::factory()->create();
@@ -71,6 +72,21 @@ test('a task outside the active workspace cannot be linked to a focus session', 
         ->post(route('focus-sessions.store', $workspace), ['task_id' => $task->id])
         ->assertNotFound();
 
+    $this->actingAs($member)
+        ->post(route('focus-sessions.store', $workspace), ['task_id' => $task->id + 100000])
+        ->assertNotFound();
+
+    $this->assertDatabaseCount('focus_sessions', 0);
+});
+
+test('focus session start rejects malformed task identifiers', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+
+    $this->actingAs($user)
+        ->post(route('focus-sessions.store', $workspace), ['task_id' => 'not-an-id'])
+        ->assertSessionHasErrors('task_id');
+
     $this->assertDatabaseCount('focus_sessions', 0);
 });
 
@@ -92,11 +108,12 @@ test('the database prevents concurrent active focus sessions for the same user',
 
     FocusSession::create(['user_id' => $user->id, 'status' => 'running', 'started_at' => $startedAt]);
 
-    expect(fn () => FocusSession::create([
+    expect(fn () => DB::transaction(fn () => FocusSession::create([
         'user_id' => $user->id,
         'status' => 'paused',
         'started_at' => $startedAt,
-    ]))->toThrow(QueryException::class);
+    ])))->toThrow(QueryException::class);
 
+    $this->assertDatabaseHas('focus_sessions', ['user_id' => $user->id, 'status' => 'running']);
     $this->assertDatabaseCount('focus_sessions', 1);
 });

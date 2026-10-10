@@ -11,7 +11,7 @@ class StoreFocusSessionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'task_id' => ['nullable', 'integer', 'exists:tasks,id'],
+            'task_id' => ['nullable', 'integer'],
         ];
     }
 }

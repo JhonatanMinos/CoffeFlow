@@ -153,3 +153,15 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 - Verificación integral: `php artisan test` — 118 pruebas, 482 aserciones; `vendor/bin/pint --test` y `npm run build` correctos, sin fallos ni skips.
 - Rollback por dependencia: KT-03 → KT-02 → KT-01; las migraciones requieren respaldo si existen datos desplegados.
 - Próximo paso: crear el tracker en borrador y publicar los tres PRs hijos de la cadena `feature-branch-chain`.
+
+### Recuperación de la cadena sobre `main` vigente
+
+- La rama remota `main` vigente es `83f9339`. El historial previo basado en `8e665d4` no comparte un merge-base con esa rama; por eso se conservó intacto y se trasladó cada unidad mediante cherry-pick, sin modificar `main`.
+- Las referencias remotas antiguas se preservan sin cambios: `feature/kanban-tasks` en `1db7cf2` y `feature/kanban-tasks-tracker` en `f783204`.
+- Nueva cadena basada en `83f9339`: tracker `feature/kanban-tasks-chain` en `2a83c02`; KT-01 `feature/kanban-tasks-chain-01-create-display` en `cbc44c8`; KT-02 `feature/kanban-tasks-chain-02-move-wip` en `9cf8509`; KT-03 `feature/kanban-tasks-chain-03-complete` en `b147a42` antes de este registro.
+- Diff verificado por límites: tracker 111 líneas autorales; KT-01 610; KT-02 518; KT-03 371 antes de este registro y 383 incluyéndolo. Los diffs incluyen las actualizaciones de evidencia ODD correspondientes. KT-01 y KT-02 mantienen la excepción de tamaño aceptada para sus unidades verticales cohesivas.
+- No se crearon PRs: `gh` no está disponible y su instalación fue rechazada. La creación queda pendiente y manual; las URLs de comparación exactas son:
+  - Tracker: https://github.com/JhonatanMinos/CoffeFlow/compare/main...feature/kanban-tasks-chain?expand=1
+  - KT-01: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain...feature/kanban-tasks-chain-01-create-display?expand=1
+  - KT-02: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain-01-create-display...feature/kanban-tasks-chain-02-move-wip?expand=1
+  - KT-03: https://github.com/JhonatanMinos/CoffeFlow/compare/feature/kanban-tasks-chain-02-move-wip...feature/kanban-tasks-chain-03-complete?expand=1

@@ -148,7 +148,8 @@ Las tareas son la base necesaria para vincular posteriormente sesiones de enfoqu
 - Segundo límite de slice previsto: `d410ba1` + `2093884`; todavía no se creó ni publicó ningún PR.
 - Tercer límite de slice previsto: `6905a74`; todavía no se creó ni publicó ningún PR.
 - Los slices KT-01 y KT-02 superan el presupuesto orientativo de 400 líneas como unidades verticales cohesivas; antes de crear PRs se debe resolver `size:exception` o una separación adicional que no rompa comportamiento y pruebas.
+- Decisión de entrega: el mantenedor aceptó `size:exception` para KT-01 (582 líneas) y KT-02 (486 líneas) porque cada slice conserva una unidad vertical cohesiva con sus pruebas.
 - Conteo acumulado de commits de trabajo KT-01 + KT-02 + KT-03: 1417 líneas autorales.
 - Verificación integral: `php artisan test` — 118 pruebas, 482 aserciones; `vendor/bin/pint --test` y `npm run build` correctos, sin fallos ni skips.
 - Rollback por dependencia: KT-03 → KT-02 → KT-01; las migraciones requieren respaldo si existen datos desplegados.
-- Próximo paso: decidir el tratamiento de tamaño para los slices KT-01/KT-02 antes de crear o publicar la cadena de PRs.
+- Próximo paso: crear el tracker en borrador y publicar los tres PRs hijos de la cadena `feature-branch-chain`.

@@ -6,6 +6,7 @@ use App\Models\FocusSession;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 class StartFocusSession
 {
@@ -19,12 +20,18 @@ class StartFocusSession
         }
 
         try {
-            return FocusSession::query()->create([
-                'user_id' => $user->id,
-                'task_id' => $task?->id,
-                'status' => 'running',
-                'started_at' => now(),
-            ]);
+            return DB::transaction(function () use ($user, $task): FocusSession {
+                $startedAt = now();
+                $session = FocusSession::query()->create([
+                    'user_id' => $user->id,
+                    'task_id' => $task?->id,
+                    'status' => 'running',
+                    'started_at' => $startedAt,
+                ]);
+                $session->intervals()->create(['started_at' => $startedAt]);
+
+                return $session;
+            });
         } catch (QueryException $exception) {
             if ($this->isActiveSessionConflict($exception)) {
                 return null;

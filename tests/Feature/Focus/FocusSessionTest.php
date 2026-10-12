@@ -2,6 +2,7 @@
 
 use App\Enums\WorkspaceRole;
 use App\Models\FocusSession;
+use App\Models\FocusSessionInterval;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -93,6 +94,152 @@ test('an authenticated user can start a free focus session', function () {
         'status' => 'running',
         'started_at' => $startedAt->toDateTimeString(),
     ]);
+
+    $this->assertDatabaseHas('focus_session_intervals', [
+        'focus_session_id' => FocusSession::firstOrFail()->id,
+        'started_at' => $startedAt->toDateTimeString(),
+        'ended_at' => null,
+    ]);
+});
+
+test('the owner can pause a running focus session and close its active interval', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $startedAt = Carbon::parse('2026-10-10 12:00:00');
+    $pausedAt = $startedAt->copy()->addMinutes(25);
+    Carbon::setTestNow($startedAt);
+    $this->actingAs($user)->post(route('focus-sessions.store', $workspace))->assertRedirect();
+    $session = FocusSession::firstOrFail();
+
+    Carbon::setTestNow($pausedAt);
+    $this->actingAs($user)
+        ->post(route('focus-sessions.pause', [$workspace, $session]))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'paused']);
+    $this->assertDatabaseHas('focus_session_intervals', [
+        'focus_session_id' => $session->id,
+        'started_at' => $startedAt->toDateTimeString(),
+        'ended_at' => $pausedAt->toDateTimeString(),
+    ]);
+});
+
+test('a legacy running focus session without intervals can be paused without backfilling time', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $session = FocusSession::create([
+        'user_id' => $user->id,
+        'status' => 'running',
+        'started_at' => Carbon::parse('2026-10-09 12:00:00'),
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('focus-sessions.pause', [$workspace, $session]))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'paused']);
+    $this->assertDatabaseCount('focus_session_intervals', 0);
+});
+
+test('the owner can resume a paused focus session with a new open interval', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $startedAt = Carbon::parse('2026-10-10 12:00:00');
+    $pausedAt = $startedAt->copy()->addMinutes(25);
+    $resumedAt = $pausedAt->copy()->addMinutes(5);
+    Carbon::setTestNow($startedAt);
+    $this->actingAs($user)->post(route('focus-sessions.store', $workspace))->assertRedirect();
+    $session = FocusSession::firstOrFail();
+    Carbon::setTestNow($pausedAt);
+    $this->actingAs($user)->post(route('focus-sessions.pause', [$workspace, $session]))->assertRedirect();
+
+    Carbon::setTestNow($resumedAt);
+    $this->actingAs($user)
+        ->post(route('focus-sessions.resume', [$workspace, $session]))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'running']);
+    $this->assertDatabaseCount('focus_session_intervals', 2);
+    $this->assertDatabaseHas('focus_session_intervals', [
+        'focus_session_id' => $session->id,
+        'started_at' => $resumedAt->toDateTimeString(),
+        'ended_at' => null,
+    ]);
+});
+
+test('a legacy paused focus session resumes with a fresh interval and no historical time', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $session = FocusSession::create([
+        'user_id' => $user->id,
+        'status' => 'paused',
+        'started_at' => Carbon::parse('2026-10-09 12:00:00'),
+    ]);
+    $resumedAt = Carbon::parse('2026-10-10 12:00:00');
+    Carbon::setTestNow($resumedAt);
+
+    $this->actingAs($user)
+        ->post(route('focus-sessions.resume', [$workspace, $session]))
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'running']);
+    $this->assertDatabaseCount('focus_session_intervals', 1);
+    $this->assertDatabaseHas('focus_session_intervals', [
+        'focus_session_id' => $session->id,
+        'started_at' => $resumedAt->toDateTimeString(),
+        'ended_at' => null,
+    ]);
+});
+
+test('repeated or invalid focus session transitions leave session intervals unchanged', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    Carbon::setTestNow(Carbon::parse('2026-10-10 12:00:00'));
+    $this->actingAs($user)->post(route('focus-sessions.store', $workspace))->assertRedirect();
+    $session = FocusSession::firstOrFail();
+    $interval = FocusSessionInterval::firstOrFail();
+
+    $this->actingAs($user)->post(route('focus-sessions.pause', [$workspace, $session]))->assertRedirect();
+    $pausedInterval = FocusSessionInterval::firstOrFail();
+    $this->actingAs($user)
+        ->post(route('focus-sessions.pause', [$workspace, $session]))
+        ->assertRedirect()
+        ->assertSessionHasErrors('focus_session');
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'paused']);
+    $this->assertDatabaseHas('focus_session_intervals', ['id' => $interval->id, 'ended_at' => $pausedInterval->ended_at]);
+    $this->assertDatabaseCount('focus_session_intervals', 1);
+
+    $this->actingAs($user)->post(route('focus-sessions.resume', [$workspace, $session]))->assertRedirect();
+    $this->actingAs($user)
+        ->post(route('focus-sessions.resume', [$workspace, $session]))
+        ->assertRedirect()
+        ->assertSessionHasErrors('focus_session');
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'running']);
+    $this->assertDatabaseCount('focus_session_intervals', 2);
+});
+
+test('a workspace member cannot pause another users focus session', function () {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $workspace->members()->attach($member, ['role' => WorkspaceRole::Member->value]);
+    $session = FocusSession::create([
+        'user_id' => $member->id,
+        'status' => 'running',
+        'started_at' => now(),
+    ]);
+    $interval = FocusSessionInterval::create([
+        'focus_session_id' => $session->id,
+        'started_at' => now(),
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('focus-sessions.pause', [$workspace, $session]))
+        ->assertNotFound();
+
+    $this->assertDatabaseHas('focus_sessions', ['id' => $session->id, 'status' => 'running']);
+    $this->assertDatabaseHas('focus_session_intervals', ['id' => $interval->id, 'ended_at' => null]);
 });
 
 test('a workspace member can start a focus session linked to an accessible task', function () {

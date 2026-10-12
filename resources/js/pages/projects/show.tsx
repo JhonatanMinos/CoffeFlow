@@ -9,6 +9,12 @@ import { Label } from '@/components/ui/label';
 import { index, show } from '@/routes/projects';
 import type { Board } from '@/types';
 
+type ActiveFocusSession = {
+    id: number;
+    taskId: number | null;
+    status: 'running' | 'paused';
+};
+
 type ProjectDetails = {
     id: number;
     name: string;
@@ -33,12 +39,22 @@ type Props = {
     };
     canCreateTask: boolean;
     canCompleteTasks: boolean;
+    activeFocusSession: ActiveFocusSession | null;
 };
 
-export default function ProjectShow({ project, board, canCreateTask, canCompleteTasks }: Props) {
+export default function ProjectShow({
+    project,
+    board,
+    canCreateTask,
+    canCompleteTasks,
+    activeFocusSession,
+}: Props) {
     const { currentWorkspace } = usePage().props;
     const taskStoreUrl = currentWorkspace
         ? `/${encodeURIComponent(currentWorkspace.slug)}/projects/${encodeURIComponent(project.slug)}/tasks`
+        : null;
+    const focusSessionUrl = currentWorkspace
+        ? `/${encodeURIComponent(currentWorkspace.slug)}/focus-sessions`
         : null;
 
     return (
@@ -50,6 +66,16 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                     <Heading title={project.name} description={board.name} />
                     <Badge variant="secondary">Kanban</Badge>
                 </div>
+
+                {activeFocusSession ? (
+                    <p
+                        role="status"
+                        aria-live="polite"
+                        className="text-sm font-medium"
+                    >
+                        Ya tienes una sesión de enfoque activa.
+                    </p>
+                ) : null}
 
                 <section
                     aria-label={`Tablero ${board.name}`}
@@ -76,11 +102,56 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                             key={task.id}
                                             className="rounded-lg border bg-background p-3"
                                         >
-                                            <h3 className="font-medium">{task.title}</h3>
+                                            <h3 className="font-medium">
+                                                {task.title}
+                                            </h3>
                                             {task.description ? (
-                                                <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                                                <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
                                                     {task.description}
                                                 </p>
+                                            ) : null}
+                                            {focusSessionUrl ? (
+                                                <Form
+                                                    action={focusSessionUrl}
+                                                    method="post"
+                                                    className="mt-3 grid justify-items-start gap-2"
+                                                >
+                                                    {({
+                                                        errors,
+                                                        processing,
+                                                    }) => (
+                                                        <>
+                                                            <input
+                                                                type="hidden"
+                                                                name="task_id"
+                                                                value={task.id}
+                                                            />
+                                                            <InputError
+                                                                id={`focus-session-error-${task.id}`}
+                                                                role="alert"
+                                                                message={
+                                                                    errors.focus_session
+                                                                }
+                                                            />
+                                                            <Button
+                                                                type="submit"
+                                                                variant="outline"
+                                                                disabled={
+                                                                    processing ||
+                                                                    activeFocusSession !==
+                                                                        null
+                                                                }
+                                                                aria-describedby={
+                                                                    errors.focus_session
+                                                                        ? `focus-session-error-${task.id}`
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                Iniciar enfoque
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </Form>
                                             ) : null}
                                             {canCreateTask &&
                                             column.category !== 'done' &&
@@ -90,39 +161,71 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                     method="post"
                                                     className="mt-3 grid gap-2"
                                                 >
-                                                    {({ errors, processing }) => (
+                                                    {({
+                                                        errors,
+                                                        processing,
+                                                    }) => (
                                                         <>
-                                                            <Label htmlFor={`task-move-${task.id}`}>
+                                                            <Label
+                                                                htmlFor={`task-move-${task.id}`}
+                                                            >
                                                                 Mover a
                                                             </Label>
                                                             <select
                                                                 id={`task-move-${task.id}`}
                                                                 name="column_id"
-                                                                defaultValue={column.id}
-                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                defaultValue={
+                                                                    column.id
+                                                                }
+                                                                aria-invalid={Boolean(
+                                                                    errors.column_id,
+                                                                )}
                                                                 aria-describedby={
                                                                     errors.column_id
                                                                         ? `task-move-error-${task.id}`
                                                                         : undefined
                                                                 }
-                                                                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                                             >
                                                                 {board.columns
-                                                                    .filter((target) => target.category !== 'done')
-                                                                    .map((target) => (
-                                                                        <option key={target.id} value={target.id}>
-                                                                            {target.name}
-                                                                        </option>
-                                                                    ))}
+                                                                    .filter(
+                                                                        (
+                                                                            target,
+                                                                        ) =>
+                                                                            target.category !==
+                                                                            'done',
+                                                                    )
+                                                                    .map(
+                                                                        (
+                                                                            target,
+                                                                        ) => (
+                                                                            <option
+                                                                                key={
+                                                                                    target.id
+                                                                                }
+                                                                                value={
+                                                                                    target.id
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    target.name
+                                                                                }
+                                                                            </option>
+                                                                        ),
+                                                                    )}
                                                             </select>
                                                             <InputError
                                                                 id={`task-move-error-${task.id}`}
-                                                                message={errors.column_id}
+                                                                message={
+                                                                    errors.column_id
+                                                                }
                                                             />
                                                             <Button
                                                                 type="submit"
                                                                 variant="outline"
-                                                                disabled={processing}
+                                                                disabled={
+                                                                    processing
+                                                                }
                                                             >
                                                                 Mover
                                                             </Button>
@@ -138,17 +241,26 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                     method="post"
                                                     className="mt-3 grid gap-2"
                                                 >
-                                                    {({ errors, processing }) => (
+                                                    {({
+                                                        errors,
+                                                        processing,
+                                                    }) => (
                                                         <>
                                                             <InputError
                                                                 id={`task-complete-error-${task.id}`}
                                                                 role="alert"
-                                                                message={errors.column_id}
+                                                                message={
+                                                                    errors.column_id
+                                                                }
                                                             />
                                                             <Button
                                                                 type="submit"
-                                                                disabled={processing}
-                                                                aria-invalid={Boolean(errors.column_id)}
+                                                                disabled={
+                                                                    processing
+                                                                }
+                                                                aria-invalid={Boolean(
+                                                                    errors.column_id,
+                                                                )}
                                                                 aria-describedby={
                                                                     errors.column_id
                                                                         ? `task-complete-error-${task.id}`
@@ -179,7 +291,10 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                             column.category !== 'done' ? (
                                 <details className="rounded-lg border bg-background p-3">
                                     <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                                        <Plus aria-hidden="true" className="size-4" />
+                                        <Plus
+                                            aria-hidden="true"
+                                            className="size-4"
+                                        />
                                         Crear tarea
                                     </summary>
                                     <Form
@@ -206,7 +321,9 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                     message={errors.column_id}
                                                 />
                                                 <div className="grid gap-2">
-                                                    <Label htmlFor={`task-title-${column.id}`}>
+                                                    <Label
+                                                        htmlFor={`task-title-${column.id}`}
+                                                    >
                                                         Título
                                                     </Label>
                                                     <Input
@@ -214,7 +331,9 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                         name="title"
                                                         maxLength={160}
                                                         required
-                                                        aria-invalid={Boolean(errors.title)}
+                                                        aria-invalid={Boolean(
+                                                            errors.title,
+                                                        )}
                                                         aria-describedby={
                                                             errors.title
                                                                 ? `task-title-error-${column.id}`
@@ -227,7 +346,9 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                     />
                                                 </div>
                                                 <div className="grid gap-2">
-                                                    <Label htmlFor={`task-description-${column.id}`}>
+                                                    <Label
+                                                        htmlFor={`task-description-${column.id}`}
+                                                    >
                                                         Descripción (opcional)
                                                     </Label>
                                                     <textarea
@@ -235,20 +356,27 @@ export default function ProjectShow({ project, board, canCreateTask, canComplete
                                                         name="description"
                                                         maxLength={5000}
                                                         rows={3}
-                                                        aria-invalid={Boolean(errors.description)}
+                                                        aria-invalid={Boolean(
+                                                            errors.description,
+                                                        )}
                                                         aria-describedby={
                                                             errors.description
                                                                 ? `task-description-error-${column.id}`
                                                                 : undefined
                                                         }
-                                                        className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                                                        className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                                     />
                                                     <InputError
                                                         id={`task-description-error-${column.id}`}
-                                                        message={errors.description}
+                                                        message={
+                                                            errors.description
+                                                        }
                                                     />
                                                 </div>
-                                                <Button type="submit" disabled={processing}>
+                                                <Button
+                                                    type="submit"
+                                                    disabled={processing}
+                                                >
                                                     Crear tarea
                                                 </Button>
                                             </>

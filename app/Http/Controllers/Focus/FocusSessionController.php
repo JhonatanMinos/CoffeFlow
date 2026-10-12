@@ -40,6 +40,6 @@ class FocusSessionController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Sesión de enfoque iniciada.')]);
 
-        return to_route('dashboard', ['current_workspace' => $workspace->slug]);
+        return back();
     }
 }

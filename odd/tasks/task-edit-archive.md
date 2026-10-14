@@ -71,15 +71,17 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Implementación:** se añadieron acciones independientes según `canEditTasks`/`canArchiveTasks`; edición envía solo título y descripción y el diálogo de archivo explica que los datos y el historial se conservan. Los errores `title`, `description` y `task` se muestran junto al formulario correspondiente; solo una respuesta exitosa cierra cada diálogo.
 
+**Corrección de accesibilidad:** la revisión independiente detectó que los botones que abrían los diálogos no estaban registrados como triggers Radix, por lo que el foco no se restauraba al cerrar con Escape o Cancelar. Ambos botones ahora usan `DialogTrigger asChild` dentro de su diálogo controlado, habilitando la restauración de foco de Radix sin cambiar el comportamiento de apertura.
+
 **Criterios de aceptación:**
 
 - Las acciones usan los endpoints protegidos por servidor y solo se muestran cuando el usuario puede ejecutarlas.
 - La edición refleja los campos permitidos por el modelo; archivar pide confirmación y retira la tarea activa del tablero sin borrarla.
 - Los controles son utilizables por teclado y exponen etiquetas/feedback accesibles.
 
-**Verificación:** `npm run types:check` pasó; `npm run build` pasó con aviso no bloqueante: falta el opcional `fontaine` para optimizar fallbacks de fuentes; `php artisan test tests/Feature/Tasks/TaskTest.php` pasó (26 tests, 147 assertions); `vendor/bin/pint --test` pasó; `git diff --check` pasó. No hay runner automatizado de UI configurado ni se afirma QA manual de navegador.
+**Verificación:** revisión independiente: `php artisan test` pasó (136 tests, 607 assertions), con `TaskTest.php` 26/26 y 147 assertions; `vendor/bin/pint --test` pasó. Para esta corrección: `npm run types:check` pasó; `npm run build` pasó con aviso no bloqueante por el opcional `fontaine` ausente; `node_modules/.bin/oxfmt --check resources/js/components/tasks/task-card-actions.tsx` pasó; `git diff --check` pasó. No hay runner automatizado de UI; la lectura estructural confirma que cada opener está registrado como `DialogTrigger`, pero no se realizó QA manual de navegador.
 
-**Commit:** pendiente de verificación y commit de trabajo.
+**Commit:** `4884365` — `feat(tasks): add task card edit and archive actions` (corte de interfaz TEA-02). Corrección de foco: commit pendiente.
 
 ## Progreso
 
@@ -91,13 +93,15 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - Verificación final observada: `TaskTest.php` 26/26, `FocusSessionTest.php` 10/10, suite completa 136/136, `vendor/bin/pint --test` pasó y `git diff --check` pasó.
 - La base de pruebas usa SQLite en memoria: confirma invariantes funcionales, no la serialización real entre procesos concurrentes ni la ejecución PostgreSQL de la migración.
 - El tracker Focus modificado preexistente se preservó en esta rama como archivo no rastreado y debe permanecer fuera de los commits de este feature.
-- El native review y el estado RDD se consultarán de manera no mutante antes de cualquier flujo de revisión; no se inventará resultado PASS.
+- Native CLI ausente; el estado RDD permanece desconocido y no se afirma PASS nativo.
+- La verificación independiente registró la suite completa con 136 tests y 607 assertions (TaskTest: 26 tests, 147 assertions), además de Pint; la revisión encontró que los diálogos no registraban el botón opener como trigger Radix y no podían restaurar el foco. La corrección queda limitada al registro de `DialogTrigger asChild` en ambos botones.
 - El frontend solo tiene `types:check`, `build` y `check`; `package.json` no incluye Vitest, Playwright ni otro runner de UI. Las pruebas existentes de `TaskTest` ya verifican los props de permiso enviados por servidor y pasaron (26 tests, 147 assertions).
 - TEA-01 es un único commit cohesivo por encima del umbral: 506 líneas autorales; la estrategia `stacked-to-main` permanece y requerirá una pasada honesta de slicing antes de cualquier PR. No reescribir historia ni omitir pruebas.
+- La migración de `archived_at` no se ha aplicado a la base de datos local; no ejecutar migraciones sin autorización separada. El tracker Focus `odd/tasks/focus-session-pause-resume.md` sigue preexistente y sin rastrear, excluido de commits.
 
 ## Próximo paso
 
-Continuar con TEA-02 usando `canEditTasks`/`canArchiveTasks`. Publicación y PR quedan pendientes de autorización explícita.
+TEA-02 y la corrección acotada de foco están implementados y verificados. La migración local de `archived_at` y QA manual de navegador quedan pendientes; no hacerlos en esta tarea. Antes de cualquier publicación, realizar una sola pasada de slicing para el commit TEA-01 de 506 líneas autorales. PR y acceso remoto siguen pendientes de autorización explícita.
 
 ## Relevant Files
 

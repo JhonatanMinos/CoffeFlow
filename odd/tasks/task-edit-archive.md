@@ -59,7 +59,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Verificación:** RED antes de implementar si existe runner determinista aplicable; `php artisan test tests/Feature/Tasks/TaskTest.php`, `php artisan test`, `vendor/bin/pint --test` y `git diff --check`.
 
-**Commit:** se registrará el hash después del corte de implementación.
+**Commit:** `3f72ee4` — `feat(tasks): add secure editing and archival` (corte backend local; 594 líneas incluyendo el tracker, 487 autorales de código y pruebas).
 
 ### TEA-02 — Integrar controles en tarjetas del tablero
 
@@ -93,7 +93,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ## Próximo paso
 
-Registrar el hash del commit local de TEA-01 y continuar con TEA-02 usando `canEditTasks`/`canArchiveTasks`. Publicación y PR quedan pendientes de autorización explícita.
+Continuar con TEA-02 usando `canEditTasks`/`canArchiveTasks`. Publicación y PR quedan pendientes de autorización explícita.
 
 ## Relevant Files
 

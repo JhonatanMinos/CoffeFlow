@@ -197,3 +197,25 @@ test('the database prevents concurrent active focus sessions for the same user',
     $this->assertDatabaseHas('focus_sessions', ['user_id' => $user->id, 'status' => 'running']);
     $this->assertDatabaseCount('focus_sessions', 1);
 });
+
+test('a workspace member cannot start focus on an archived task', function () {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $workspace->members()->attach($member, ['role' => WorkspaceRole::Member->value]);
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Focus archivado']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $board->columns()->firstOrFail()->id,
+        'created_by' => $owner->id,
+    ]);
+    $task->forceFill(['archived_at' => now()])->save();
+
+    $this->actingAs($member)
+        ->post(route('focus-sessions.store', $workspace), ['task_id' => $task->id])
+        ->assertSessionHasErrors('task_id');
+
+    $this->assertDatabaseCount('focus_sessions', 0);
+});

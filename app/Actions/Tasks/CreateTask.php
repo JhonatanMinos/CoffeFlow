@@ -47,7 +47,7 @@ class CreateTask
 
             if (
                 $column->wip_limit !== null &&
-                Task::query()->where('column_id', $column->id)->count() >= $column->wip_limit
+                Task::query()->where('column_id', $column->id)->whereNull('archived_at')->count() >= $column->wip_limit
             ) {
                 throw ValidationException::withMessages([
                     'column_id' => 'La columna alcanzó su límite WIP.',

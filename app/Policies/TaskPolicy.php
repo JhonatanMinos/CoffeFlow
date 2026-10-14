@@ -19,6 +19,16 @@ class TaskPolicy
         return $user->workspaceRole($project->workspace)?->isAtLeast(WorkspaceRole::Member) ?? false;
     }
 
+    public function update(User $user, Project $project): bool
+    {
+        return $user->workspaceRole($project->workspace)?->isAtLeast(WorkspaceRole::Member) ?? false;
+    }
+
+    public function archive(User $user, Project $project): bool
+    {
+        return $user->workspaceRole($project->workspace)?->isAtLeast(WorkspaceRole::Member) ?? false;
+    }
+
     public function view(User $user, Task $task): bool
     {
         return $user->belongsToWorkspace($task->project->workspace);

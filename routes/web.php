@@ -19,6 +19,8 @@ Route::prefix('{current_workspace}')
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
         Route::post('projects/{project}/tasks', [TaskController::class, 'store'])->name('tasks.store');
+        Route::put('projects/{project}/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
+        Route::delete('projects/{project}/tasks/{task}', [TaskController::class, 'archive'])->name('tasks.archive');
         Route::post('projects/{project}/tasks/{task}/move', [TaskController::class, 'move'])->name('tasks.move');
         Route::post('projects/{project}/tasks/{task}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
     });

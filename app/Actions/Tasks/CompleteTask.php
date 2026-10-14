@@ -16,6 +16,13 @@ class CompleteTask
     {
         return DB::transaction(function () use ($task, $completer): Task {
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+
+            if ($lockedTask->archived_at !== null) {
+                throw ValidationException::withMessages([
+                    'column_id' => 'No se pueden completar tareas archivadas.',
+                ]);
+            }
+
             $sourceColumn = BoardColumn::query()->findOrFail($lockedTask->column_id);
             $board = Board::query()->findOrFail($sourceColumn->board_id);
 
@@ -63,7 +70,7 @@ class CompleteTask
             if (
                 $sourceColumn->id !== $doneColumn->id &&
                 $doneColumn->wip_limit !== null &&
-                Task::query()->where('column_id', $doneColumn->id)->count() >= $doneColumn->wip_limit
+                Task::query()->where('column_id', $doneColumn->id)->whereNull('archived_at')->count() >= $doneColumn->wip_limit
             ) {
                 throw ValidationException::withMessages([
                     'column_id' => 'La columna alcanzó su límite WIP.',

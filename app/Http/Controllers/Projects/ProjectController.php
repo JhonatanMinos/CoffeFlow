@@ -82,7 +82,8 @@ class ProjectController extends Controller
             ->where('is_default', true)
             ->with([
                 'columns:id,board_id,name,category,position,wip_limit',
-                'columns.tasks:id,column_id,title,description,completed_at',
+                'columns.tasks' => fn ($query) => $query->select(['id', 'column_id', 'title', 'description', 'completed_at'])
+                    ->whereNull('archived_at'),
             ])
             ->firstOrFail();
 
@@ -119,6 +120,8 @@ class ProjectController extends Controller
                 ]),
             ],
             'canCreateTask' => Gate::allows('create', [Task::class, $projectModel]),
+            'canEditTasks' => Gate::allows('update', [Task::class, $projectModel]),
+            'canArchiveTasks' => Gate::allows('archive', [Task::class, $projectModel]),
             'canCompleteTasks' => Gate::allows('complete', [Task::class, $projectModel]),
             'activeFocusSession' => $activeFocusSession ? [
                 'id' => $activeFocusSession->id,

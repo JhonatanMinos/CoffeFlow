@@ -15,6 +15,13 @@ class MoveTask
     {
         return DB::transaction(function () use ($task, $targetColumnId): Task {
             $lockedTask = Task::query()->lockForUpdate()->findOrFail($task->id);
+
+            if ($lockedTask->archived_at !== null) {
+                throw ValidationException::withMessages([
+                    'column_id' => 'No se pueden mover tareas archivadas.',
+                ]);
+            }
+
             $targetColumn = BoardColumn::query()
                 ->lockForUpdate()
                 ->findOrFail($targetColumnId);
@@ -48,7 +55,7 @@ class MoveTask
 
             if (
                 $targetColumn->wip_limit !== null &&
-                Task::query()->where('column_id', $targetColumn->id)->count() >= $targetColumn->wip_limit
+                Task::query()->where('column_id', $targetColumn->id)->whereNull('archived_at')->count() >= $targetColumn->wip_limit
             ) {
                 throw ValidationException::withMessages([
                     'column_id' => 'La columna alcanzó su límite WIP.',

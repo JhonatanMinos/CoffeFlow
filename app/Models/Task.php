@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $created_by
  * @property string $title
  * @property string|null $description
+ * @property Carbon|null $archived_at
  * @property Carbon|null $completed_at
  * @property int|null $completed_by
  * @property Carbon|null $created_at
@@ -35,6 +36,7 @@ class Task extends Model
     {
         return [
             'completed_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 

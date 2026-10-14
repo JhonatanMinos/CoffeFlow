@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Tasks;
 
+use App\Actions\Tasks\ArchiveTask;
 use App\Actions\Tasks\CompleteTask;
 use App\Actions\Tasks\CreateTask;
 use App\Actions\Tasks\MoveTask;
+use App\Actions\Tasks\UpdateTask;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tasks\MoveTaskRequest;
 use App\Http\Requests\Tasks\StoreTaskRequest;
+use App\Http\Requests\Tasks\UpdateTaskRequest;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Workspace;
@@ -18,6 +21,50 @@ use Inertia\Inertia;
 
 class TaskController extends Controller
 {
+    public function archive(Request $request, ArchiveTask $archiveTask): RedirectResponse
+    {
+        $workspace = $request->route('current_workspace');
+        $projectSlug = $request->route('project');
+        $taskId = $request->route('task');
+
+        abort_if(! $workspace instanceof Workspace, 404);
+        abort_if(! is_string($projectSlug) || ! is_string($taskId), 404);
+
+        $project = $workspace->projects()->where('slug', $projectSlug)->firstOrFail();
+        $task = $project->tasks()->whereKey($taskId)->firstOrFail();
+        Gate::authorize('archive', [Task::class, $project]);
+        $archiveTask->handle($task);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Tarea archivada.')]);
+
+        return to_route('projects.show', [
+            'current_workspace' => $workspace->slug,
+            'project' => $project->slug,
+        ]);
+    }
+
+    public function update(UpdateTaskRequest $request, UpdateTask $updateTask): RedirectResponse
+    {
+        $workspace = $request->route('current_workspace');
+        $projectSlug = $request->route('project');
+        $taskId = $request->route('task');
+
+        abort_if(! $workspace instanceof Workspace, 404);
+        abort_if(! is_string($projectSlug) || ! is_string($taskId), 404);
+
+        $project = $workspace->projects()->where('slug', $projectSlug)->firstOrFail();
+        $task = $project->tasks()->whereKey($taskId)->firstOrFail();
+        Gate::authorize('update', [Task::class, $project]);
+        $updateTask->handle($task, $request->validated());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Tarea actualizada.')]);
+
+        return to_route('projects.show', [
+            'current_workspace' => $workspace->slug,
+            'project' => $project->slug,
+        ]);
+    }
+
     public function complete(Request $request, CompleteTask $completeTask): RedirectResponse
     {
         $workspace = $request->route('current_workspace');

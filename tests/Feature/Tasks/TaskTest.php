@@ -3,6 +3,7 @@
 use App\Enums\WorkspaceRole;
 use App\Models\Board;
 use App\Models\BoardColumn;
+use App\Models\FocusSession;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -43,7 +44,9 @@ test('workspace members can create and see tasks grouped in a project board colu
             ->component('projects/show')
             ->where('board.columns.0.tasks.0.title', 'Preparar lanzamiento')
             ->where('board.columns.0.tasks.0.description', 'Revisar los pasos pendientes.')
-            ->where('canCreateTask', true),
+            ->where('canCreateTask', true)
+            ->where('canEditTasks', true)
+            ->where('canArchiveTasks', true),
         );
 });
 
@@ -113,7 +116,9 @@ test('guests can view projects but cannot create or move tasks', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('projects/show')
-            ->where('canCreateTask', false),
+            ->where('canCreateTask', false)
+            ->where('canEditTasks', false)
+            ->where('canArchiveTasks', false),
         );
 
     $this->actingAs($guest)
@@ -561,4 +566,244 @@ test('completion rejects a full done column without changing the task', function
         ->and($task->fresh()->completed_at)->toBeNull()
         ->and($task->fresh()->completed_by)->toBeNull();
     $this->assertDatabaseCount('tasks', 2);
+});
+
+test('authorized workspace members can edit only task title and description', function () {
+    $owner = User::factory()->create();
+    $member = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $workspace->members()->attach($member, ['role' => WorkspaceRole::Member->value]);
+
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Edición segura']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $column = $board->columns()->where('category', 'todo')->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($member)
+        ->put(route('tasks.update', [$workspace, $project->slug, $task->id]), [
+            'title' => 'Título actualizado',
+            'description' => 'Descripción actualizada',
+            'column_id' => $board->columns()->where('category', 'done')->firstOrFail()->id,
+        ])
+        ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
+
+    expect($task->fresh()->title)->toBe('Título actualizado')
+        ->and($task->fresh()->description)->toBe('Descripción actualizada')
+        ->and($task->fresh()->column_id)->toBe($column->id)
+        ->and($task->fresh()->created_by)->toBe($owner->id);
+});
+
+test('task edits reject invalid and extra fields without changing task state', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Edición inválida']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $column = $board->columns()->where('category', 'todo')->firstOrFail();
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->put(route('tasks.update', [$workspace, $project->slug, $task->id]), [
+            'title' => str_repeat('x', 161),
+            'description' => 'Inválida',
+            'column_id' => $done->id,
+        ])
+        ->assertSessionHasErrors('title');
+
+    expect($task->fresh()->title)->not->toBe(str_repeat('x', 161))
+        ->and($task->fresh()->column_id)->toBe($column->id);
+});
+
+test('guests and outsiders cannot edit tasks and project scope is enforced', function () {
+    $owner = User::factory()->create();
+    $guest = User::factory()->create();
+    $outsider = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $workspace->members()->attach($guest, ['role' => WorkspaceRole::Guest->value]);
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Permisos edición']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $column = $project->boards()->firstOrFail()->columns()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($guest)
+        ->put(route('tasks.update', [$workspace, $project->slug, $task->id]), ['title' => 'Sin permiso'])
+        ->assertForbidden();
+    $this->actingAs($outsider)
+        ->put(route('tasks.update', [$workspace, $project->slug, $task->id]), ['title' => 'Fuera'])
+        ->assertForbidden();
+
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Otro ámbito']);
+    $otherProject = Project::where('workspace_id', $workspace->id)->where('id', '!=', $project->id)->firstOrFail();
+    $this->actingAs($owner)
+        ->put(route('tasks.update', [$workspace, $otherProject->slug, $task->id]), ['title' => 'Fuera de proyecto'])
+        ->assertNotFound();
+
+    expect($task->fresh()->title)->not->toBe('Sin permiso');
+});
+
+test('authorized users archive tasks without deleting focus history and archived tasks leave the board', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Archivo seguro']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $column = $project->boards()->firstOrFail()->columns()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+    $session = FocusSession::create([
+        'user_id' => $owner->id,
+        'task_id' => $task->id,
+        'status' => 'completed',
+        'started_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($owner)
+        ->delete(route('tasks.archive', [$workspace, $project->slug, $task->id]))
+        ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
+
+    expect($task->fresh()->archived_at)->not->toBeNull()
+        ->and($session->fresh()->task_id)->toBe($task->id);
+    $this->assertDatabaseHas('tasks', ['id' => $task->id, 'title' => $task->title]);
+    $this->actingAs($owner)
+        ->get(route('projects.show', [$workspace, $project->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('board.columns.0.tasks', []));
+});
+
+test('archive is idempotent and requires an authorized user', function () {
+    $owner = User::factory()->create();
+    $guest = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $workspace->members()->attach($guest, ['role' => WorkspaceRole::Guest->value]);
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Archivo idempotente']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $column = $project->boards()->firstOrFail()->columns()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($guest)
+        ->delete(route('tasks.archive', [$workspace, $project->slug, $task->id]))
+        ->assertForbidden();
+    $this->actingAs($owner)
+        ->delete(route('tasks.archive', [$workspace, $project->slug, $task->id]))
+        ->assertRedirect();
+    $archivedAt = $task->fresh()->archived_at;
+    $this->travel(5)->minutes();
+    $this->actingAs($owner)
+        ->delete(route('tasks.archive', [$workspace, $project->slug, $task->id]))
+        ->assertRedirect();
+
+    expect($task->fresh()->archived_at->equalTo($archivedAt))->toBeTrue();
+});
+
+test('archiving a task releases its WIP slot and archived tasks cannot be moved or completed', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'WIP archivo']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $source = $board->columns()->where('category', 'todo')->firstOrFail();
+    $target = $board->columns()->where('category', 'in_progress')->firstOrFail();
+    $source->update(['wip_limit' => 1]);
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $done->update(['wip_limit' => 1]);
+    $archived = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $source->id,
+        'created_by' => $owner->id,
+    ]);
+    $this->actingAs($owner)->delete(route('tasks.archive', [$workspace, $project->slug, $archived->id]));
+
+    $this->actingAs($owner)
+        ->post(route('tasks.store', [$workspace, $project->slug]), [
+            'title' => 'Ocupa el espacio liberado', 'board_id' => $board->id, 'column_id' => $source->id,
+        ])
+        ->assertRedirect();
+    $this->actingAs($owner)
+        ->post(route('tasks.move', [$workspace, $project->slug, $archived->id]), ['column_id' => $target->id])
+        ->assertSessionHasErrors('column_id');
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $archived->id]))
+        ->assertSessionHasErrors('column_id');
+
+    expect($archived->fresh()->column_id)->toBe($source->id)
+        ->and($archived->fresh()->completed_at)->toBeNull();
+});
+
+test('archived tasks do not consume WIP capacity for moves or completion', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'WIP con archivo']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $source = $board->columns()->where('category', 'todo')->firstOrFail();
+    $target = $board->columns()->where('category', 'in_progress')->firstOrFail();
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $target->update(['wip_limit' => 1]);
+    $done->update(['wip_limit' => 1]);
+    $archivedInTarget = Task::factory()->create([
+        'project_id' => $project->id, 'column_id' => $target->id, 'created_by' => $owner->id,
+    ]);
+    $archivedInDone = Task::factory()->create([
+        'project_id' => $project->id, 'column_id' => $done->id, 'created_by' => $owner->id,
+    ]);
+    $this->actingAs($owner)->delete(route('tasks.archive', [$workspace, $project->slug, $archivedInTarget->id]));
+    $this->actingAs($owner)->delete(route('tasks.archive', [$workspace, $project->slug, $archivedInDone->id]));
+    $toMove = Task::factory()->create([
+        'project_id' => $project->id, 'column_id' => $source->id, 'created_by' => $owner->id,
+    ]);
+    $toComplete = Task::factory()->create([
+        'project_id' => $project->id, 'column_id' => $source->id, 'created_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('tasks.move', [$workspace, $project->slug, $toMove->id]), ['column_id' => $target->id])
+        ->assertRedirect();
+    $this->actingAs($owner)
+        ->post(route('tasks.complete', [$workspace, $project->slug, $toComplete->id]))
+        ->assertRedirect();
+
+    expect($toMove->fresh()->column_id)->toBe($target->id)
+        ->and($toComplete->fresh()->column_id)->toBe($done->id);
+});
+
+test('archiving is rejected while a task has an active focus session', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Archivo con Focus']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $column = $project->boards()->firstOrFail()->columns()->firstOrFail();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $column->id,
+        'created_by' => $owner->id,
+    ]);
+    FocusSession::create([
+        'user_id' => $owner->id, 'task_id' => $task->id, 'status' => 'paused', 'started_at' => now(),
+    ]);
+
+    $this->actingAs($owner)
+        ->delete(route('tasks.archive', [$workspace, $project->slug, $task->id]))
+        ->assertSessionHasErrors('task');
+
+    expect($task->fresh()->archived_at)->toBeNull();
 });

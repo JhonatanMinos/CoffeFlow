@@ -37,7 +37,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 - Estrategia: `stacked-to-main`, elegida por el usuario para este feature.
 - Rama: `feature/task-edit-archive`, basada en `origin/main`.
-- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker; revisar el conteo al cerrar cada tarea. Mantener cada corte debajo del presupuesto aproximado de 400 cuando sea coherente.
+- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker. TEA-01 cerró con 613 líneas totales (594 inserciones + 19 eliminaciones), 506 autorales sin el tracker; una sola pasada de slicing antes de cualquier PR debe definir los cortes coherentes. No reducir código ni pruebas para alcanzar el presupuesto.
 - No hay autorización de acceso remoto; los cortes quedan locales hasta que el usuario autorice otra cosa.
 
 ## Tareas
@@ -63,11 +63,13 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ### TEA-02 — Integrar controles en tarjetas del tablero
 
-- [ ] Añadir controles `Editar` y `Archivar` accesibles a tarjetas, con confirmación antes de archivar.
-- [ ] Mostrar errores de validación/operación en el contexto de la página y mantener la UI coherente tras éxito.
-- [ ] Actualizar pruebas disponibles y documentación del incremento.
+- [x] Añadir controles `Editar` y `Archivar` accesibles a tarjetas, con confirmación antes de archivar.
+- [x] Mostrar errores de validación/operación en el contexto del diálogo y mantener la UI coherente tras éxito.
+- [x] Actualizar pruebas disponibles y documentación del incremento; el repositorio no configura un runner automatizado de React.
 
 **Ruta:** delegada; integración coordinada de interfaz, pruebas y tracker.
+
+**Implementación:** se añadieron acciones independientes según `canEditTasks`/`canArchiveTasks`; edición envía solo título y descripción y el diálogo de archivo explica que los datos y el historial se conservan. Los errores `title`, `description` y `task` se muestran junto al formulario correspondiente; solo una respuesta exitosa cierra cada diálogo.
 
 **Criterios de aceptación:**
 
@@ -75,13 +77,13 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - La edición refleja los campos permitidos por el modelo; archivar pide confirmación y retira la tarea activa del tablero sin borrarla.
 - Los controles son utilizables por teclado y exponen etiquetas/feedback accesibles.
 
-**Verificación:** `npm run types:check`, `npm run build`, `php artisan test tests/Feature/Tasks/TaskTest.php`, `vendor/bin/pint --test` y `git diff --check`; registrar si no existe runner automatizado de UI.
+**Verificación:** `npm run types:check` pasó; `npm run build` pasó con aviso no bloqueante: falta el opcional `fontaine` para optimizar fallbacks de fuentes; `php artisan test tests/Feature/Tasks/TaskTest.php` pasó (26 tests, 147 assertions); `vendor/bin/pint --test` pasó; `git diff --check` pasó. No hay runner automatizado de UI configurado ni se afirma QA manual de navegador.
 
-**Commit:** pendiente.
+**Commit:** pendiente de verificación y commit de trabajo.
 
 ## Progreso
 
-- La exploración previa identificó `TaskController`, `TaskPolicy`, `Task`, migración de tareas, `ProjectController` y `TaskTest` como superficies afectadas; verificar nuevamente contra el código actual durante TEA-01.
+- La exploración previa identificó `TaskController`, `TaskPolicy`, `Task`, migración de tareas, `ProjectController` y `TaskTest` como superficies afectadas; TEA-01 confirmó e implementó ese alcance.
 - TEA-01 agrega edición PUT (solo `title` y `description`) y archivo DELETE lógico. Archivo es idempotente y rechaza sesiones enlazadas `running`/`paused`; Focus start y archive bloquean la misma fila de tarea dentro de transacciones para serializar la carrera en bases con soporte de row locks.
 - Las tareas archivadas desaparecen del tablero activo y no consumen WIP en creación, movimiento ni finalización. Editar, mover, completar e iniciar Focus sobre una tarea archivada se rechaza en el límite de acción/servicio.
 - La página del proyecto ahora expone `canEditTasks` y `canArchiveTasks` para TEA-02; las Policy siguen usando el umbral de miembro ya aplicado a creación/finalización.
@@ -90,6 +92,8 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - La base de pruebas usa SQLite en memoria: confirma invariantes funcionales, no la serialización real entre procesos concurrentes ni la ejecución PostgreSQL de la migración.
 - El tracker Focus modificado preexistente se preservó en esta rama como archivo no rastreado y debe permanecer fuera de los commits de este feature.
 - El native review y el estado RDD se consultarán de manera no mutante antes de cualquier flujo de revisión; no se inventará resultado PASS.
+- El frontend solo tiene `types:check`, `build` y `check`; `package.json` no incluye Vitest, Playwright ni otro runner de UI. Las pruebas existentes de `TaskTest` ya verifican los props de permiso enviados por servidor y pasaron (26 tests, 147 assertions).
+- TEA-01 es un único commit cohesivo por encima del umbral: 506 líneas autorales; la estrategia `stacked-to-main` permanece y requerirá una pasada honesta de slicing antes de cualquier PR. No reescribir historia ni omitir pruebas.
 
 ## Próximo paso
 

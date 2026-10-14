@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import TaskCardActions from '@/components/tasks/task-card-actions';
 import { index, show } from '@/routes/projects';
 import type { Board } from '@/types';
 
@@ -39,6 +40,8 @@ type Props = {
     };
     canCreateTask: boolean;
     canCompleteTasks: boolean;
+    canEditTasks: boolean;
+    canArchiveTasks: boolean;
     activeFocusSession: ActiveFocusSession | null;
 };
 
@@ -47,6 +50,8 @@ export default function ProjectShow({
     board,
     canCreateTask,
     canCompleteTasks,
+    canEditTasks,
+    canArchiveTasks,
     activeFocusSession,
 }: Props) {
     const { currentWorkspace } = usePage().props;
@@ -109,6 +114,16 @@ export default function ProjectShow({
                                                 <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
                                                     {task.description}
                                                 </p>
+                                            ) : null}
+                                            {taskStoreUrl &&
+                                            (canEditTasks || canArchiveTasks) ? (
+                                                <TaskCardActions
+                                                    task={task}
+                                                    currentWorkspace={currentWorkspace?.slug ?? null}
+                                                    project={project.slug}
+                                                    canEdit={canEditTasks}
+                                                    canArchive={canArchiveTasks}
+                                                />
                                             ) : null}
                                             {focusSessionUrl ? (
                                                 <Form

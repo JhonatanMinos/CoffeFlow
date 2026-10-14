@@ -81,7 +81,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Verificación:** revisión independiente: `php artisan test` pasó (136 tests, 607 assertions), con `TaskTest.php` 26/26 y 147 assertions; `vendor/bin/pint --test` pasó. Para esta corrección: `npm run types:check` pasó; `npm run build` pasó con aviso no bloqueante por el opcional `fontaine` ausente; `node_modules/.bin/oxfmt --check resources/js/components/tasks/task-card-actions.tsx` pasó; `git diff --check` pasó. No hay runner automatizado de UI; la lectura estructural confirma que cada opener está registrado como `DialogTrigger`, pero no se realizó QA manual de navegador.
 
-**Commit:** `4884365` — `feat(tasks): add task card edit and archive actions` (corte de interfaz TEA-02). Corrección de foco: commit pendiente.
+**Commit:** `4884365` — `feat(tasks): add task card edit and archive actions` (corte de interfaz TEA-02). `ed11929` — `fix(tasks): restore focus after task dialogs` (corrección de foco y tracker).
 
 ## Progreso
 
@@ -98,6 +98,8 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - El frontend solo tiene `types:check`, `build` y `check`; `package.json` no incluye Vitest, Playwright ni otro runner de UI. Las pruebas existentes de `TaskTest` ya verifican los props de permiso enviados por servidor y pasaron (26 tests, 147 assertions).
 - TEA-01 es un único commit cohesivo por encima del umbral: 506 líneas autorales; la estrategia `stacked-to-main` permanece y requerirá una pasada honesta de slicing antes de cualquier PR. No reescribir historia ni omitir pruebas.
 - La migración de `archived_at` no se ha aplicado a la base de datos local; no ejecutar migraciones sin autorización separada. El tracker Focus `odd/tasks/focus-session-pause-resume.md` sigue preexistente y sin rastrear, excluido de commits.
+- Lectura independiente final: ambos botones registran `DialogTrigger asChild`; el estado final pasó `oxfmt --check`, `npm run types:check`, `npm run build` y `git diff --check`. Los cambios residuales del componente son fragmentos y formato sin cambios semánticos adicionales.
+- `php artisan migrate:status --path=database/migrations/2026_10_14_000000_add_archived_at_to_tasks_table.php` confirmó `Pending` en la base local; solo se consultó estado, no se aplicó la migración.
 
 ## Próximo paso
 

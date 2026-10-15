@@ -59,7 +59,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Verificación:** RED antes de implementar si existe runner determinista aplicable; `php artisan test tests/Feature/Tasks/TaskTest.php`, `php artisan test`, `vendor/bin/pint --test` y `git diff --check`.
 
-**Commit:** `3f72ee4` — `feat(tasks): add secure editing and archival` (corte backend local; 594 líneas incluyendo el tracker, 487 autorales de código y pruebas).
+**Commit:** `3f72ee4` — `feat(tasks): add secure editing and archival` (corte backend local; 613 líneas autorales incluyendo el tracker, 506 de código y pruebas; altas más bajas).
 
 ### TEA-02 — Integrar controles en tarjetas del tablero
 
@@ -97,13 +97,14 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - La verificación independiente registró la suite completa con 136 tests y 607 assertions (TaskTest: 26 tests, 147 assertions), además de Pint; la revisión encontró que los diálogos no registraban el botón opener como trigger Radix y no podían restaurar el foco. La corrección queda limitada al registro de `DialogTrigger asChild` en ambos botones.
 - El frontend solo tiene `types:check`, `build` y `check`; `package.json` no incluye Vitest, Playwright ni otro runner de UI. Las pruebas existentes de `TaskTest` ya verifican los props de permiso enviados por servidor y pasaron (26 tests, 147 assertions).
 - TEA-01 es un único commit cohesivo por encima del umbral: 506 líneas autorales; la estrategia `stacked-to-main` permanece y requerirá una pasada honesta de slicing antes de cualquier PR. No reescribir historia ni omitir pruebas.
-- La migración de `archived_at` no se ha aplicado a la base de datos local; no ejecutar migraciones sin autorización separada. El tracker Focus `odd/tasks/focus-session-pause-resume.md` sigue preexistente y sin rastrear, excluido de commits.
+- Tras autorización explícita del usuario, se aplicó únicamente la migración de `archived_at` a SQLite local. El tracker Focus `odd/tasks/focus-session-pause-resume.md` sigue preexistente y sin rastrear, excluido de commits.
 - Lectura independiente final: ambos botones registran `DialogTrigger asChild`; el estado final pasó `oxfmt --check`, `npm run types:check`, `npm run build` y `git diff --check`. Los cambios residuales del componente son fragmentos y formato sin cambios semánticos adicionales.
-- `php artisan migrate:status --path=database/migrations/2026_10_14_000000_add_archived_at_to_tasks_table.php` confirmó `Pending` en la base local; solo se consultó estado, no se aplicó la migración.
+- `php artisan migrate --path=database/migrations/2026_10_14_000000_add_archived_at_to_tasks_table.php` pasó; la consulta posterior de estado confirmó `[6] Ran` y la columna existe. No se ejecutaron otras migraciones ni seeders.
+- Verificación de datos antes/después: usuarios 2, tareas 1, sesiones Focus 1, sesiones enlazadas 1 y enlaces válidos 1, sin cambios; tareas archivadas 0. La consulta de tablero con `whereNull('archived_at')` devolvió la tarea existente. `php artisan test tests/Feature/Tasks/TaskTest.php` pasó nuevamente (26 tests, 147 assertions).
 
 ## Próximo paso
 
-TEA-02 y la corrección acotada de foco están implementados y verificados. La migración local de `archived_at` y QA manual de navegador quedan pendientes; no hacerlos en esta tarea. Antes de cualquier publicación, realizar una sola pasada de slicing para el commit TEA-01 de 506 líneas autorales. PR y acceso remoto siguen pendientes de autorización explícita.
+El código y la migración local están aplicados y verificados. Queda pendiente QA manual de navegador y verificación de concurrencia real en PostgreSQL. Antes de cualquier publicación, realizar una sola pasada de slicing para el commit TEA-01 de 506 líneas autorales. PR y acceso remoto siguen pendientes de autorización explícita.
 
 ## Relevant Files
 

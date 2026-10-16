@@ -90,6 +90,10 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **RED/GREEN observados:** antes de implementar, las nuevas pruebas fallaron al observar objetivo nulo/configuración no validada, heartbeat sin ruta y límites de pausa/reloj incorrectos (9 pruebas: 1 pasó, 4 fallaron y 4 tuvieron error). Tras implementar y normalizar: Focus `26/26` (155 aserciones); suite PHP `157/157` (726 aserciones); `vendor/bin/pint --test` y `git diff --check` pasaron. Pruebas con `APP_KEY` efímera y SQLite en memoria. Intervalos heredados sin confirmación se cierran inmediatamente en `started_at`, aunque estén dentro de la gracia.
 
+**Corrección de configuración tras revisión independiente:** validación del valor crudo de `env()` antes de conversión; acepta defaults y cadenas enteras canónicas positivas, rechaza booleanos, decimales, prefijos numéricos con sufijo y desbordamiento. Prueba de carga real de `config/focus.php` restaurando el entorno: RED observó que valores inválidos se truncaban/aceptaban; GREEN tras corregir: Focus `27/27` (163 aserciones), suite PHP `158/158` (734 aserciones), Pint y diff check pasaron. PostgreSQL sigue pendiente.
+
+**Corte de corrección:** 97 líneas autorales (93 de código/pruebas y 4 de documentación), aislado del work unit FC-02 anterior. **Commit/evidencia:** pendiente.
+
 **Alcance de concurrencia:** los comandos adquieren primero el lock de sesión y después el intervalo; la restricción de intervalo abierto duplicado se ejercitó en SQLite. PostgreSQL y carreras concurrentes reales quedan pendientes; SQLite no demuestra su comportamiento. No se ejecutó migración contra una base persistente. La revisión nativa sigue no disponible mientras no exista `gentle-ai` en el entorno.
 
 **Conteo de corte:** 379 líneas autorales (363 de código/pruebas y 16 de documentación); FC-02 queda bajo el presupuesto orientativo de 400. **Commit/evidencia:** `62a3891` (`feat(focus): confirm verified session activity`).

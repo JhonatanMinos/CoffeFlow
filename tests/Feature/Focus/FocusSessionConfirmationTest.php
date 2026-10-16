@@ -42,6 +42,78 @@ test('invalid target and contact grace configuration are rejected', function () 
     expect($interval->fresh()->ended_at)->toBeNull();
 });
 
+test('focus configuration validates raw environment values before conversion', function () {
+    $keys = ['FOCUS_TARGET_DURATION_SECONDS', 'FOCUS_CONTACT_GRACE_SECONDS'];
+    $original = [];
+    foreach ($keys as $key) {
+        $original[$key] = [
+            'getenv' => getenv($key),
+            'env_present' => array_key_exists($key, $_ENV),
+            'env' => $_ENV[$key] ?? null,
+            'server_present' => array_key_exists($key, $_SERVER),
+            'server' => $_SERVER[$key] ?? null,
+        ];
+    }
+
+    $set = function (string $key, ?string $value): void {
+        if ($value === null) {
+            putenv($key);
+            unset($_ENV[$key], $_SERVER[$key]);
+
+            return;
+        }
+
+        putenv("{$key}={$value}");
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    };
+
+    $load = function (?string $target, ?string $grace) use ($set): array {
+        $set('FOCUS_TARGET_DURATION_SECONDS', $target);
+        $set('FOCUS_CONTACT_GRACE_SECONDS', $grace);
+
+        return require config_path('focus.php');
+    };
+
+    try {
+        expect($load(null, null))->toBe([
+            'target_duration_seconds' => 1500,
+            'contact_grace_seconds' => 90,
+        ]);
+        expect($load('2100', '120'))->toBe([
+            'target_duration_seconds' => 2100,
+            'contact_grace_seconds' => 120,
+        ]);
+
+        foreach ([
+            ['1500.9', '90'],
+            ['true', '90'],
+            ['1500junk', '90'],
+            ['1500', '90junk'],
+            ['999999999999999999999999999999999999', '90'],
+            ['1500', '999999999999999999999999999999999999'],
+        ] as [$target, $grace]) {
+            expect(fn () => $load($target, $grace))->toThrow(LogicException::class);
+        }
+    } finally {
+        foreach ($keys as $key) {
+            $values = $original[$key];
+            $values['getenv'] === false ? putenv($key) : putenv("{$key}={$values['getenv']}");
+            if ($values['env_present']) {
+                $_ENV[$key] = $values['env'];
+            } else {
+                unset($_ENV[$key]);
+            }
+
+            if ($values['server_present']) {
+                $_SERVER[$key] = $values['server'];
+            } else {
+                unset($_SERVER[$key]);
+            }
+        }
+    }
+});
+
 test('fresh heartbeat confirms to server time and accepts exact grace boundary only', function () {
     config(['focus.contact_grace_seconds' => 90]);
     $user = User::factory()->create();

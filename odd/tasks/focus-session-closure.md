@@ -120,5 +120,13 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.
 - FC-01 implementado y verificado localmente; no se aplicaron migraciones a una base personal.
-- Modalidad `stacked-to-main` confirmada. Siguiente paso: revisión independiente de FC-01; después continuar FC-02.
+- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. Siguiente paso: FC-02 (objetivo y confirmación de actividad).
 - Native CLI `gentle-ai` no estaba instalado; volver a consultar estado sin cambiar preferencias y registrar indisponibilidad si persiste.
+
+## Verificación independiente de FC-01
+
+- Código `04490f1`; tracker inicial `5dfe6be`. Sin hallazgos bloqueantes; comprobación estructural del padre y diff check correctos.
+- Verificador independiente reprodujo Focus 16/105 y suite PHP 147/676; Pint y diff check correctos.
+- Pendiente: pruebas PostgreSQL de concurrencia y revisión nativa (CLI no disponible). SQLite no demuestra carreras PostgreSQL.
+- Cobertura adicional para FC-02/03: reanudación por propietario ajeno, estados terminales y rechazo de intervalo abierto duplicado.
+- Cortes locales previstos: comportamiento FC-01 `806daf8..04490f1` (323 líneas); documentación `04490f1..5dfe6be` (124 líneas). No hay PR publicados.

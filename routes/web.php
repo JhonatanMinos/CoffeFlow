@@ -17,6 +17,7 @@ Route::prefix('{current_workspace}')
         Route::post('focus-sessions', [FocusSessionController::class, 'store'])->name('focus-sessions.store');
         Route::post('focus-sessions/{focusSession}/pause', [FocusSessionController::class, 'pause'])->name('focus-sessions.pause');
         Route::post('focus-sessions/{focusSession}/resume', [FocusSessionController::class, 'resume'])->name('focus-sessions.resume');
+        Route::post('focus-sessions/{focusSession}/heartbeat', [FocusSessionController::class, 'heartbeat'])->name('focus-sessions.heartbeat');
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');

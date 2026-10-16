@@ -104,8 +104,10 @@ test('the owner can pause a running focus session and close its active interval'
     Carbon::setTestNow($startedAt);
     $this->actingAs($user)->post(route('focus-sessions.store', $workspace))->assertRedirect();
     $session = FocusSession::firstOrFail();
+    $session->intervals()->firstOrFail()->update(['last_confirmed_at' => $pausedAt->copy()->subMinute()]);
 
     Carbon::setTestNow($pausedAt);
+    $this->actingAs($user)->postJson(route('focus-sessions.heartbeat', [$workspace, $session]))->assertOk();
     $this->actingAs($user)
         ->post(route('focus-sessions.pause', [$workspace, $session]))
         ->assertRedirect();
@@ -144,7 +146,9 @@ test('the owner can resume a paused focus session with a new open interval', fun
     Carbon::setTestNow($startedAt);
     $this->actingAs($user)->post(route('focus-sessions.store', $workspace))->assertRedirect();
     $session = FocusSession::firstOrFail();
+    $session->intervals()->firstOrFail()->update(['last_confirmed_at' => $pausedAt->copy()->subMinute()]);
     Carbon::setTestNow($pausedAt);
+    $this->actingAs($user)->postJson(route('focus-sessions.heartbeat', [$workspace, $session]))->assertOk();
     $this->actingAs($user)->post(route('focus-sessions.pause', [$workspace, $session]))->assertRedirect();
 
     Carbon::setTestNow($resumedAt);

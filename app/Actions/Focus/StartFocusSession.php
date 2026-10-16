@@ -38,9 +38,10 @@ class StartFocusSession
                     'task_id' => $task?->id,
                     'status' => 'running',
                     'started_at' => $startedAt,
+                    'target_duration_seconds' => ConfirmFocusSessionInterval::targetDurationSeconds(),
                 ]);
 
-                $session->intervals()->create(['started_at' => $startedAt]);
+                $session->intervals()->create(['started_at' => $startedAt, 'last_confirmed_at' => $startedAt]);
 
                 return $session;
             });

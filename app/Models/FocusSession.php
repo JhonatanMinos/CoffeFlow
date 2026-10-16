@@ -14,10 +14,12 @@ use Illuminate\Support\Carbon;
  * @property int|null $task_id
  * @property string $status
  * @property Carbon $started_at
+ * @property int|null $target_duration_seconds
+ * @property Carbon|null $ended_at
  * @property-read User $user
  * @property-read Task|null $task
  */
-#[Fillable(['user_id', 'task_id', 'status', 'started_at'])]
+#[Fillable(['user_id', 'task_id', 'status', 'started_at', 'target_duration_seconds', 'ended_at'])]
 class FocusSession extends Model
 {
     /** @return array<string, string> */
@@ -25,6 +27,8 @@ class FocusSession extends Model
     {
         return [
             'started_at' => 'datetime',
+            'ended_at' => 'datetime',
+            'target_duration_seconds' => 'integer',
         ];
     }
 

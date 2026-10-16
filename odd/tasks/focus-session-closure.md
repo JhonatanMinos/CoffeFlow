@@ -76,9 +76,9 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 ### FC-02 — Guardar objetivos y acotar actividad confirmada
 
-- [ ] Añadir objetivo y fecha terminal de sesión, confirmación del intervalo y configuración provisional validada.
-- [ ] Registrar confirmaciones autenticadas; cerrar tramos vencidos sin sumar huecos ni pausas.
-- [ ] Cubrir casos frescos/vencidos, datos anteriores, objetivo estable, aislamiento por usuario y concurrencia.
+- [x] Añadir objetivo y fecha terminal de sesión, confirmación del intervalo y configuración provisional validada.
+- [x] Registrar confirmaciones autenticadas; cerrar tramos vencidos sin sumar huecos ni pausas.
+- [x] Cubrir casos frescos/vencidos, datos anteriores, objetivo estable, aislamiento por usuario y concurrencia SQLite.
 
 **Ruta:** delegada; persistencia, acciones y contrato de tiempo backend coordinados.
 
@@ -86,7 +86,13 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Checks:** RED/GREEN determinista en Focus, suite PHP, Pint y diff check; PostgreSQL aislado para carreras aplicables, con límites de espera.
 
-**Commit/evidencia:** pendiente.
+**Ruta y rollback:** un work unit backend cohesivo. Revertir solo la migración de campos de confirmación, helper/acción/ruta de heartbeat, snapshots y cierres por pausa, y pruebas asociadas; no revertir FC-01 ni el tracker preexistente `odd/tasks/focus-session-pause-resume.md`.
+
+**RED/GREEN observados:** antes de implementar, las nuevas pruebas fallaron al observar objetivo nulo/configuración no validada, heartbeat sin ruta y límites de pausa/reloj incorrectos (9 pruebas: 1 pasó, 4 fallaron y 4 tuvieron error). Tras implementar y normalizar: Focus `26/26` (155 aserciones); suite PHP `157/157` (726 aserciones); `vendor/bin/pint --test` y `git diff --check` pasaron. Pruebas con `APP_KEY` efímera y SQLite en memoria. Intervalos heredados sin confirmación se cierran inmediatamente en `started_at`, aunque estén dentro de la gracia.
+
+**Alcance de concurrencia:** los comandos adquieren primero el lock de sesión y después el intervalo; la restricción de intervalo abierto duplicado se ejercitó en SQLite. PostgreSQL y carreras concurrentes reales quedan pendientes; SQLite no demuestra su comportamiento. No se ejecutó migración contra una base persistente. La revisión nativa sigue no disponible mientras no exista `gentle-ai` en el entorno.
+
+**Conteo de corte:** 379 líneas autorales (363 de código/pruebas y 16 de documentación); FC-02 queda bajo el presupuesto orientativo de 400. **Commit/evidencia:** pendiente de registrar tras crear el commit.
 
 ### FC-03 — Finalizar e interrumpir de forma atómica
 
@@ -120,7 +126,7 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.
 - FC-01 implementado y verificado localmente; no se aplicaron migraciones a una base personal.
-- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. Siguiente paso: FC-02 (objetivo y confirmación de actividad).
+- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente y review nativo siguen pendientes. Siguiente paso: FC-03 (finalización e interrupción).
 - Native CLI `gentle-ai` no estaba instalado; volver a consultar estado sin cambiar preferencias y registrar indisponibilidad si persiste.
 
 ## Verificación independiente de FC-01

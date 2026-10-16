@@ -24,7 +24,8 @@ class ResumeFocusSession
                 return false;
             }
 
-            $session->intervals()->create(['started_at' => now()]);
+            $startedAt = now();
+            $session->intervals()->create(['started_at' => $startedAt, 'last_confirmed_at' => $startedAt]);
             $session->update(['status' => 'running']);
 
             return true;

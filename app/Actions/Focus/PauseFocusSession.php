@@ -26,7 +26,11 @@ class PauseFocusSession
 
             $interval = $session->intervals()->whereNull('ended_at')->lockForUpdate()->first();
             if ($interval) {
-                $interval->update(['ended_at' => now()]);
+                app(ConfirmFocusSessionInterval::class)->handle($interval, now());
+                $interval->refresh();
+                if ($interval->ended_at === null) {
+                    $interval->update(['ended_at' => $interval->last_confirmed_at ?? $interval->started_at]);
+                }
             }
 
             $session->update(['status' => 'paused']);

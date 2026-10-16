@@ -92,7 +92,7 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Alcance de concurrencia:** los comandos adquieren primero el lock de sesión y después el intervalo; la restricción de intervalo abierto duplicado se ejercitó en SQLite. PostgreSQL y carreras concurrentes reales quedan pendientes; SQLite no demuestra su comportamiento. No se ejecutó migración contra una base persistente. La revisión nativa sigue no disponible mientras no exista `gentle-ai` en el entorno.
 
-**Conteo de corte:** 379 líneas autorales (363 de código/pruebas y 16 de documentación); FC-02 queda bajo el presupuesto orientativo de 400. **Commit/evidencia:** pendiente de registrar tras crear el commit.
+**Conteo de corte:** 379 líneas autorales (363 de código/pruebas y 16 de documentación); FC-02 queda bajo el presupuesto orientativo de 400. **Commit/evidencia:** `62a3891` (`feat(focus): confirm verified session activity`).
 
 ### FC-03 — Finalizar e interrumpir de forma atómica
 

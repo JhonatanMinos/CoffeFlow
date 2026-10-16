@@ -532,7 +532,7 @@ test('repeated completion preserves the original author and timestamp', function
         ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
 
     expect($task->fresh()->completed_by)->toBe($owner->id)
-        ->and($task->fresh()->completed_at->equalTo($completedAt))->toBeTrue();
+        ->and($task->fresh()->completed_at->toDateTimeString())->toBe($completedAt->toDateTimeString());
 });
 
 test('completion rejects a full done column without changing the task', function () {
@@ -623,6 +623,46 @@ test('task edits reject invalid and extra fields without changing task state', f
     expect($task->fresh()->title)->not->toBe(str_repeat('x', 161))
         ->and($task->fresh()->column_id)->toBe($column->id);
 });
+
+dataset('task edit validation errors', [
+    'required title' => [null, 'Texto válido', 'title', 'El título es obligatorio.'],
+    'title must be a string' => [['no', 'es texto'], 'Texto válido', 'title', 'El título debe ser texto.'],
+    'title maximum length' => [str_repeat('x', 161), 'Texto válido', 'title', 'El título no puede superar los 160 caracteres.'],
+    'description must be a string' => ['Título válido', ['no', 'es texto'], 'description', 'La descripción debe ser texto.'],
+    'description maximum length' => ['Título válido', str_repeat('x', 5001), 'description', 'La descripción no puede superar los 5000 caracteres.'],
+]);
+
+test('task edit validation errors are localized and preserve task state', function ($title, $description, $field, $message) {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Validación de edición']);
+    $project = Project::where('workspace_id', $workspace->id)->firstOrFail();
+    $board = $project->boards()->firstOrFail();
+    $done = $board->columns()->where('category', 'done')->firstOrFail();
+    $completedAt = now()->subDay();
+    $task = Task::factory()->create([
+        'project_id' => $project->id,
+        'column_id' => $done->id,
+        'created_by' => $owner->id,
+        'title' => 'Título original',
+        'description' => 'Descripción original',
+        'completed_at' => $completedAt,
+        'completed_by' => $owner->id,
+    ]);
+
+    $this->actingAs($owner)
+        ->put(route('tasks.update', [$workspace, $project->slug, $task->id]), [
+            'title' => $title,
+            'description' => $description,
+        ])
+        ->assertSessionHasErrors([$field => $message]);
+
+    expect($task->fresh()->title)->toBe('Título original')
+        ->and($task->fresh()->description)->toBe('Descripción original')
+        ->and($task->fresh()->column_id)->toBe($done->id)
+        ->and($task->fresh()->completed_at->toDateTimeString())->toBe($completedAt->toDateTimeString())
+        ->and($task->fresh()->completed_by)->toBe($owner->id);
+})->with('task edit validation errors');
 
 test('guests and outsiders cannot edit tasks and project scope is enforced', function () {
     $owner = User::factory()->create();

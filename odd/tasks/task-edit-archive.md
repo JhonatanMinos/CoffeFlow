@@ -123,6 +123,22 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Incidencias del entorno resueltas:** el symlink inicial de `vendor` resolvía clases de la rama original; una copia local y comprobación por reflexión aislaron las clases del worktree. Se copiaron assets ignorados para disponer del manifiesto Vite en pruebas de servidor (no acredita fidelidad visual). El typecheck inicial del corte UI falló por Wayfinder ausente; el build lo regeneró y el typecheck independiente posterior pasó. El build mantiene avisos no bloqueantes de `fontaine` opcional y tiempos de plugins. No se afirma prueba de navegador ni concurrencia PostgreSQL.
 
+### TEA-05 — Mostrar mensajes comprensibles al editar tareas
+
+- [x] Definir mensajes de validación en español para las reglas actuales de título y descripción, sin modificar reglas ni permisos.
+- [x] Cubrir errores de requerido, tipo y longitud con una regresión RED/GREEN que también compruebe que la tarea no cambia.
+- [ ] Verificar el mensaje corregido en Chromium con datos aislados y conservar los cortes existentes sin reescribir su historia.
+
+**Ruta:** delegada; cambio coordinado en `UpdateTaskRequest`, pruebas y tracker. Alcance limitado a edición de tareas; no introducir traducciones globales ni cambiar creación de tareas u otros formularios.
+
+**Criterios de aceptación:** ningún error de las reglas actuales del formulario de edición expone claves `validation.*`; los límites de 160/5000 caracteres se sustituyen correctamente en los mensajes; las solicitudes inválidas conservan título, descripción y estado originales. Los cinco casos de regresión cubren todas las reglas aplicadas a título y descripción.
+
+**Entrega:** cuarto corte local dependiente de `feature/task-edit-archive-03-ui`; rama temporal `feature/task-edit-archive-04-validation`, commit `f0fb2aa5489c2ec3737dac44a1c3d8851c2976c4` (`fix(tasks): localize task edit validation errors`). Los dos archivos de código/pruebas se sincronizaron desde ese commit a este checkout sin rebase ni publicación. Cambio total del corte temporal, incluido tracker: 68 líneas autorales (67 altas, 1 baja), dentro del límite de 400.
+
+**Verificación observada en el worktree temporal:** RED antes del código: los cinco casos fallaron al recibir `validation.required`, `validation.string` o `validation.max.string`. GREEN: 5/5 casos y 35 assertions; los mensajes exactos y la preservación de título, descripción, columna y finalización pasaron. `php artisan test tests/Feature/Tasks/TaskTest.php`: 31 tests, 182 assertions, pasó. `php artisan test`: 141 tests, 642 assertions, pasó. `vendor/bin/pint --test` y `git diff --check` pasaron. Las pruebas PHP usaron una `APP_KEY` desechable solo en el entorno del proceso; no se modificaron `.env` ni la DB personal.
+
+**Pendiente/límites:** Chromium no se volvió a ejecutar para este cambio. `gentle-ai` CLI no está disponible; RDD queda desconocido y no se afirma PASS nativo. No se hicieron cambios globales de idioma, remotos ni en el tracker Focus.
+
 ## Progreso
 
 - La exploración previa identificó `TaskController`, `TaskPolicy`, `Task`, migración de tareas, `ProjectController` y `TaskTest` como superficies afectadas; TEA-01 confirmó e implementó ese alcance.

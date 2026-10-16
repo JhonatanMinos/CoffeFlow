@@ -532,7 +532,7 @@ test('repeated completion preserves the original author and timestamp', function
         ->assertRedirect(route('projects.show', [$workspace, $project->slug]));
 
     expect($task->fresh()->completed_by)->toBe($owner->id)
-        ->and($task->fresh()->completed_at->toDateTimeString())->toBe($completedAt->toDateTimeString());
+        ->and($task->fresh()->completed_at->equalTo($completedAt))->toBeTrue();
 });
 
 test('completion rejects a full done column without changing the task', function () {

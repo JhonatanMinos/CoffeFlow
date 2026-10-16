@@ -37,7 +37,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 - Estrategia: `stacked-to-main`, elegida por el usuario para este feature.
 - Rama: `feature/task-edit-archive`, basada en `origin/main`.
-- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker. TEA-01 cerró con 613 líneas totales (594 inserciones + 19 eliminaciones), 506 sin el tracker; la pasada de slicing produjo tres cortes locales verificados de 287, 365 y 250 líneas, sin reducir comportamiento ni pruebas.
+- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker. TEA-01 cerró con 613 líneas totales (594 inserciones + 19 eliminaciones), 506 sin el tracker; la pasada de slicing produjo tres cortes locales verificados de 287, 365 y 250 líneas. TEA-05 añade un cuarto corte correctivo de 66 líneas, sin reducir comportamiento ni pruebas.
 - No hay autorización de acceso remoto; los cortes quedan locales hasta que el usuario autorice otra cosa.
 
 ## Tareas
@@ -100,7 +100,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Datos y artefactos de navegador:** base PostgreSQL desechable separada de la usada para concurrencia; filas de sesiones completadas/activas y sus vínculos permanecieron idénticos. La tarea archivada se conservó y la tarea con sesión activa no cambió. Reporte, resultados, prueba de base y seis capturas en los artefactos temporales `artifacts/browser/`. Navegador, servidor HTTP propio y cluster privado detenidos al finalizar.
 
-**Incidencias y límites:** se corrigieron fallos del harness (clave temporal inválida, residuo de sintaxis shell, selector global ambiguo y observación de POST con `_method=PUT`); no se alteró el producto para pasar pruebas. La evidencia cubre Chromium, no una auditoría exhaustiva multibrowser/accesibilidad. Se observó un detalle de contenido: el error obligatorio del título muestra `validation.required`. El proyecto ya configuraba locale/fallback `es` sin archivos de idioma propios en la base; no se amplió el alcance a traducciones globales ni se corrigió ese mensaje. Queda como seguimiento de baja severidad, sin fallos funcionales en los escenarios solicitados.
+**Incidencias y límites:** se corrigieron fallos del harness (clave temporal inválida, residuo de sintaxis shell, selector global ambiguo y observación de POST con `_method=PUT`); no se alteró el producto para pasar esas pruebas. La evidencia cubre Chromium, no una auditoría exhaustiva multibrowser/accesibilidad. Se observó `validation.required` como mensaje obligatorio del título. El proyecto ya configuraba locale/fallback `es` sin archivos de idioma propios; TEA-05 resolvió después el mensaje con alcance exclusivo a edición, sin traducciones globales.
 
 ### TEA-04 — Preparar cortes locales revisables
 
@@ -116,8 +116,9 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 | Edición | `feature/task-edit-archive-01-edit` | `653e5e4` | 287 + 0 = 287 |
 | Archivo | `feature/task-edit-archive-02-archive` | `44aea79` | 339 + 26 = 365 |
 | Interfaz | `feature/task-edit-archive-03-ui` | `21b3105` | 243 + 7 = 250 |
+| Corrección de mensajes | `feature/task-edit-archive-04-validation` | `457f914` | 66 + 0 = 66 |
 
-**Dependencias:** `f491ae3 -> 653e5e4 -> 44aea79 -> 21b3105`. La interfaz depende de ambos cortes de servidor. El worktree temporal conserva los tres commits sin reescribir la rama original. No hay ramas publicadas ni PR de este incremento.
+**Dependencias:** `f491ae3 -> 653e5e4 -> 44aea79 -> 21b3105 -> f0fb2aa -> 457f914`. El cuarto corte reúne la corrección y su cierre de pruebas sobre la interfaz; conserva las tres ramas previas sin reescribirlas. No hay ramas publicadas ni PR de este incremento.
 
 **Verificación observada:** edición: suite independiente 130 tests/564 assertions; archivo: suite 136 tests/607 assertions. Verificación independiente del corte final: 136 tests/607 assertions, tipos, build, Pint y diff check pasaron. El árbol completo versionado coincide exactamente con `8777612`, excluyendo únicamente este tracker; el backend del segundo corte coincide con el final. Binarios y dependencias locales se reutilizaron sin instalaciones ni cambios de `.env` o de la base personal.
 
@@ -127,17 +128,19 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 - [x] Definir mensajes de validación en español para las reglas actuales de título y descripción, sin modificar reglas ni permisos.
 - [x] Cubrir errores de requerido, tipo y longitud con una regresión RED/GREEN que también compruebe que la tarea no cambia.
-- [ ] Verificar el mensaje corregido en Chromium con datos aislados y conservar los cortes existentes sin reescribir su historia.
+- [x] Verificar el mensaje corregido en Chromium con datos aislados y conservar los cortes existentes sin reescribir su historia.
 
 **Ruta:** delegada; cambio coordinado en `UpdateTaskRequest`, pruebas y tracker. Alcance limitado a edición de tareas; no introducir traducciones globales ni cambiar creación de tareas u otros formularios.
 
 **Criterios de aceptación:** ningún error de las reglas actuales del formulario de edición expone claves `validation.*`; los límites de 160/5000 caracteres se sustituyen correctamente en los mensajes; las solicitudes inválidas conservan título, descripción y estado originales. Los cinco casos de regresión cubren todas las reglas aplicadas a título y descripción.
 
-**Entrega:** cuarto corte local dependiente de `feature/task-edit-archive-03-ui`; rama temporal `feature/task-edit-archive-04-validation`, commit `f0fb2aa5489c2ec3737dac44a1c3d8851c2976c4` (`fix(tasks): localize task edit validation errors`). Los dos archivos de código/pruebas se sincronizaron desde ese commit a este checkout sin rebase ni publicación. Cambio total del corte temporal, incluido tracker: 68 líneas autorales (67 altas, 1 baja), dentro del límite de 400.
+**Entrega:** cuarto corte local `feature/task-edit-archive-04-validation`, desde `21b3105` hasta `457f914`, con implementación `f0fb2aa` y cierre de pruebas posterior; 66 altas y ninguna baja, incluido tracker. Implementación sincronizada en la rama original con `dd0fea9`; ambos archivos de código/pruebas son idénticos tras conservar la aserción original de finalización. Ningún rebase ni publicación.
 
 **Verificación observada en el worktree temporal:** RED antes del código: los cinco casos fallaron al recibir `validation.required`, `validation.string` o `validation.max.string`. GREEN: 5/5 casos y 35 assertions; los mensajes exactos y la preservación de título, descripción, columna y finalización pasaron. `php artisan test tests/Feature/Tasks/TaskTest.php`: 31 tests, 182 assertions, pasó. `php artisan test`: 141 tests, 642 assertions, pasó. `vendor/bin/pint --test` y `git diff --check` pasaron. Las pruebas PHP usaron una `APP_KEY` desechable solo en el entorno del proceso; no se modificaron `.env` ni la DB personal.
 
-**Pendiente/límites:** Chromium no se volvió a ejecutar para este cambio. `gentle-ai` CLI no está disponible; RDD queda desconocido y no se afirma PASS nativo. No se hicieron cambios globales de idioma, remotos ni en el tracker Focus.
+**Verificación independiente final:** suite 141 tests/642 assertions, Pint y diff check pasaron después de restaurar la aserción preexistente `equalTo` de idempotencia. Chromium 148 verificó 3/3 casos reales: «El título es obligatorio.», «El título no puede superar los 160 caracteres.» y «La descripción no puede superar los 5000 caracteres.». Cada rechazo mantuvo el diálogo abierto y el campo inválido; snapshots de tareas, sesiones y membresías idénticos. Capturas y reporte en artefactos temporales `artifacts/browser-validation/`; navegador, servidor propio y PostgreSQL detenidos.
+
+**Límites:** frontend sin cambios; no se repitió su build. `gentle-ai` CLI no está disponible; evaluación/preflight no pudieron ejecutarse, RDD queda desconocido y no se afirma PASS nativo. No se hicieron cambios globales de idioma, remotos ni en el tracker Focus.
 
 ## Progreso
 
@@ -160,7 +163,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ## Próximo paso
 
-El código, la migración local, los tres cortes y TEA-03 están verificados: 10 escenarios de navegador y 6 de concurrencia PostgreSQL. Queda como seguimiento el mensaje `validation.required` visible al rechazar un título vacío; no se implementó una corrección de traducciones. La publicación futura debe seguir el orden edición, archivo e interfaz; integrar y retargetear cada corte según `stacked-to-main`. PR y acceso remoto siguen pendientes de autorización explícita.
+Los pendientes locales están cerrados: código, migración, cuatro cortes, 10 escenarios de navegador, 6 de concurrencia PostgreSQL y 3 verificaciones del mensaje corregido. La publicación futura debe seguir el orden edición, archivo, interfaz y corrección de mensajes; integrar y retargetear cada corte según `stacked-to-main`. PR y acceso remoto siguen pendientes de autorización explícita.
 
 ## Relevant Files
 

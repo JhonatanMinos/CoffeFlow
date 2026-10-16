@@ -37,7 +37,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 - Estrategia: `stacked-to-main`, elegida por el usuario para este feature.
 - Rama: `feature/task-edit-archive`, basada en `origin/main`.
-- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker. TEA-01 cerró con 613 líneas totales (594 inserciones + 19 eliminaciones), 506 autorales sin el tracker; una sola pasada de slicing antes de cualquier PR debe definir los cortes coherentes. No reducir código ni pruebas para alcanzar el presupuesto.
+- Pronóstico inicial: 400–500 líneas autorales incluyendo pruebas y tracker. TEA-01 cerró con 613 líneas totales (594 inserciones + 19 eliminaciones), 506 sin el tracker; la pasada de slicing produjo tres cortes locales verificados de 287, 365 y 250 líneas, sin reducir comportamiento ni pruebas.
 - No hay autorización de acceso remoto; los cortes quedan locales hasta que el usuario autorice otra cosa.
 
 ## Tareas
@@ -83,6 +83,36 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 **Commit:** `4884365` — `feat(tasks): add task card edit and archive actions` (corte de interfaz TEA-02). `ed11929` — `fix(tasks): restore focus after task dialogs` (corrección de foco y tracker).
 
+### TEA-03 — Completar QA de navegador y concurrencia PostgreSQL
+
+- [ ] Verificar edición, confirmación/errores de archivo y navegación por teclado en navegador real con datos aislados.
+- [ ] Verificar la serialización entre inicio Focus y archivo en PostgreSQL local desechable.
+
+**Ruta:** delegada; ejecución de pruebas y preparación de datos aislados, sin tocar la base personal.
+
+**Estado:** bloqueada por entorno: no hay herramientas MCP de navegador ni módulos/CLI Playwright o Puppeteer; existen binarios de navegador, pero falta automatización. No se encontraron binarios PostgreSQL ni el controlador PHP `pdo_pgsql`. No instalar dependencias ni iniciar servicios sin resolver el alcance del entorno.
+
+### TEA-04 — Preparar cortes locales revisables
+
+- [x] Crear cortes independientes de edición backend, archivo backend e interfaz, conservando la historia original.
+- [x] Verificar cada corte con sus pruebas y documentar límites y conteos autorales.
+
+**Ruta:** delegada; construcción secuencial en un único worktree temporal y ramas nuevas. No publicar ni reescribir la rama original.
+
+**Resultado tras una pasada de slicing:**
+
+| Corte | Rama local | Commit | Altas + bajas, incluido tracker |
+| --- | --- | --- | --- |
+| Edición | `feature/task-edit-archive-01-edit` | `653e5e4` | 287 + 0 = 287 |
+| Archivo | `feature/task-edit-archive-02-archive` | `44aea79` | 339 + 26 = 365 |
+| Interfaz | `feature/task-edit-archive-03-ui` | `21b3105` | 243 + 7 = 250 |
+
+**Dependencias:** `f491ae3 -> 653e5e4 -> 44aea79 -> 21b3105`. La interfaz depende de ambos cortes de servidor. El worktree temporal conserva los tres commits sin reescribir la rama original. No hay ramas publicadas ni PR de este incremento.
+
+**Verificación observada:** edición: suite independiente 130 tests/564 assertions; archivo: suite 136 tests/607 assertions. Verificación independiente del corte final: 136 tests/607 assertions, tipos, build, Pint y diff check pasaron. El árbol completo versionado coincide exactamente con `8777612`, excluyendo únicamente este tracker; el backend del segundo corte coincide con el final. Binarios y dependencias locales se reutilizaron sin instalaciones ni cambios de `.env` o de la base personal.
+
+**Incidencias del entorno resueltas:** el symlink inicial de `vendor` resolvía clases de la rama original; una copia local y comprobación por reflexión aislaron las clases del worktree. Se copiaron assets ignorados para disponer del manifiesto Vite en pruebas de servidor (no acredita fidelidad visual). El typecheck inicial del corte UI falló por Wayfinder ausente; el build lo regeneró y el typecheck independiente posterior pasó. El build mantiene avisos no bloqueantes de `fontaine` opcional y tiempos de plugins. No se afirma prueba de navegador ni concurrencia PostgreSQL.
+
 ## Progreso
 
 - La exploración previa identificó `TaskController`, `TaskPolicy`, `Task`, migración de tareas, `ProjectController` y `TaskTest` como superficies afectadas; TEA-01 confirmó e implementó ese alcance.
@@ -96,7 +126,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 - Native CLI ausente; el estado RDD permanece desconocido y no se afirma PASS nativo.
 - La verificación independiente registró la suite completa con 136 tests y 607 assertions (TaskTest: 26 tests, 147 assertions), además de Pint; la revisión encontró que los diálogos no registraban el botón opener como trigger Radix y no podían restaurar el foco. La corrección queda limitada al registro de `DialogTrigger asChild` en ambos botones.
 - El frontend solo tiene `types:check`, `build` y `check`; `package.json` no incluye Vitest, Playwright ni otro runner de UI. Las pruebas existentes de `TaskTest` ya verifican los props de permiso enviados por servidor y pasaron (26 tests, 147 assertions).
-- TEA-01 es un único commit cohesivo por encima del umbral: 506 líneas autorales; la estrategia `stacked-to-main` permanece y requerirá una pasada honesta de slicing antes de cualquier PR. No reescribir historia ni omitir pruebas.
+- TEA-01 original conserva sus 506 líneas de código/pruebas; TEA-04 resolvió la entrega con nuevas ramas de edición, archivo e interfaz por debajo de 400 líneas cada una, sin reescribir esa historia ni omitir pruebas.
 - Tras autorización explícita del usuario, se aplicó únicamente la migración de `archived_at` a SQLite local. El tracker Focus `odd/tasks/focus-session-pause-resume.md` sigue preexistente y sin rastrear, excluido de commits.
 - Lectura independiente final: ambos botones registran `DialogTrigger asChild`; el estado final pasó `oxfmt --check`, `npm run types:check`, `npm run build` y `git diff --check`. Los cambios residuales del componente son fragmentos y formato sin cambios semánticos adicionales.
 - `php artisan migrate --path=database/migrations/2026_10_14_000000_add_archived_at_to_tasks_table.php` pasó; la consulta posterior de estado confirmó `[6] Ran` y la columna existe. No se ejecutaron otras migraciones ni seeders.
@@ -104,7 +134,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ## Próximo paso
 
-El código y la migración local están aplicados y verificados. Queda pendiente QA manual de navegador y verificación de concurrencia real en PostgreSQL. Antes de cualquier publicación, realizar una sola pasada de slicing para el commit TEA-01 de 506 líneas autorales. PR y acceso remoto siguen pendientes de autorización explícita.
+El código, la migración local y los tres cortes de entrega están verificados. Queda pendiente disponer de automatización de navegador y PostgreSQL con `pdo_pgsql` para completar TEA-03 con datos aislados. La publicación futura debe seguir el orden edición, archivo e interfaz; integrar y retargetear cada corte según `stacked-to-main`. PR y acceso remoto siguen pendientes de autorización explícita.
 
 ## Relevant Files
 

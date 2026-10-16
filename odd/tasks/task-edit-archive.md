@@ -85,12 +85,22 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ### TEA-03 — Completar QA de navegador y concurrencia PostgreSQL
 
-- [ ] Verificar edición, confirmación/errores de archivo y navegación por teclado en navegador real con datos aislados.
-- [ ] Verificar la serialización entre inicio Focus y archivo en PostgreSQL local desechable.
+- [x] Verificar edición, confirmación/errores de archivo y navegación por teclado en navegador real con datos aislados.
+- [x] Verificar la serialización entre inicio Focus y archivo en PostgreSQL local desechable.
 
 **Ruta:** delegada; ejecución de pruebas y preparación de datos aislados, sin tocar la base personal.
 
-**Estado:** bloqueada por entorno: no hay herramientas MCP de navegador ni módulos/CLI Playwright o Puppeteer; existen binarios de navegador, pero falta automatización. No se encontraron binarios PostgreSQL ni el controlador PHP `pdo_pgsql`. No instalar dependencias ni iniciar servicios sin resolver el alcance del entorno.
+**Estado:** verificación completada con datos aislados tras autorización explícita: PostgreSQL 17.11 y `pdo_pgsql` para PHP 8.4.26 extraídos en el entorno temporal, Playwright Core 1.64.1 y Chromium 148 existente. No se instalaron paquetes ni servicios del host ni se modificaron `.env` o la base personal. Se usaron bases nuevas y un socket PostgreSQL privado sin listener TCP; los servicios QA quedaron detenidos.
+
+**Concurrencia observada:** 6/6 escenarios con procesos PHP independientes y acciones reales en PostgreSQL 17.11: tres ejecuciones con archivo ganador rechazaron el inicio competidor y conservaron cero sesiones; tres con inicio ganador rechazaron el archivo y conservaron una sesión `running` correctamente enlazada. Antes de liberar cada transacción ganadora, `pg_stat_activity` y `pg_blocking_pids` confirmaron que el competidor esperaba el bloqueo de la misma tarea. Las barreras y esperas tuvieron timeout; no se usó solo una inferencia por sleeps. Esto acredita concurrencia entre acciones/procesos, no peticiones HTTP simultáneas.
+
+**Aislamiento y evidencia:** migración normal en una base PostgreSQL nueva y desechable, sin reset ni acceso a SQLite personal; resultados JSON y reporte en los artefactos temporales `artifacts/concurrency/`. Los seis procesos hijos finalizaron y el cluster privado quedó detenido.
+
+**Navegador observado:** 10/10 escenarios en Chromium 148: login real y controles de propietario; apertura por teclado, contención de foco y restauración exacta tras Escape/Cancelar; validación nativa y del servidor con diálogo abierto; edición persistida y valores reabiertos; cancelación y confirmación de archivo conservando tarea e historial; rechazo de archivo con sesión activa; invitado sin controles de mantenimiento; diálogos dentro del viewport móvil 390×844. Sin errores de consola/página ni solicitudes externas.
+
+**Datos y artefactos de navegador:** base PostgreSQL desechable separada de la usada para concurrencia; filas de sesiones completadas/activas y sus vínculos permanecieron idénticos. La tarea archivada se conservó y la tarea con sesión activa no cambió. Reporte, resultados, prueba de base y seis capturas en los artefactos temporales `artifacts/browser/`. Navegador, servidor HTTP propio y cluster privado detenidos al finalizar.
+
+**Incidencias y límites:** se corrigieron fallos del harness (clave temporal inválida, residuo de sintaxis shell, selector global ambiguo y observación de POST con `_method=PUT`); no se alteró el producto para pasar pruebas. La evidencia cubre Chromium, no una auditoría exhaustiva multibrowser/accesibilidad. Se observó un detalle de contenido: el error obligatorio del título muestra `validation.required`. El proyecto ya configuraba locale/fallback `es` sin archivos de idioma propios en la base; no se amplió el alcance a traducciones globales ni se corrigió ese mensaje. Queda como seguimiento de baja severidad, sin fallos funcionales en los escenarios solicitados.
 
 ### TEA-04 — Preparar cortes locales revisables
 
@@ -134,7 +144,7 @@ El tablero necesita acciones cotidianas de mantenimiento sin romper la atribuci�
 
 ## Próximo paso
 
-El código, la migración local y los tres cortes de entrega están verificados. Queda pendiente disponer de automatización de navegador y PostgreSQL con `pdo_pgsql` para completar TEA-03 con datos aislados. La publicación futura debe seguir el orden edición, archivo e interfaz; integrar y retargetear cada corte según `stacked-to-main`. PR y acceso remoto siguen pendientes de autorización explícita.
+El código, la migración local, los tres cortes y TEA-03 están verificados: 10 escenarios de navegador y 6 de concurrencia PostgreSQL. Queda como seguimiento el mensaje `validation.required` visible al rechazar un título vacío; no se implementó una corrección de traducciones. La publicación futura debe seguir el orden edición, archivo e interfaz; integrar y retargetear cada corte según `stacked-to-main`. PR y acceso remoto siguen pendientes de autorización explícita.
 
 ## Relevant Files
 

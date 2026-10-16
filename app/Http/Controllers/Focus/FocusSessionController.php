@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Focus;
 
+use App\Actions\Focus\PauseFocusSession;
+use App\Actions\Focus\ResumeFocusSession;
 use App\Actions\Focus\StartFocusSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Focus\StoreFocusSessionRequest;
@@ -9,6 +11,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
@@ -39,6 +42,35 @@ class FocusSessionController extends Controller
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Sesión de enfoque iniciada.')]);
+
+        return back();
+    }
+
+    public function pause(Request $request, Workspace $currentWorkspace, int $focusSession, PauseFocusSession $pauseFocusSession): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if(! $user instanceof User, 403);
+        $result = $pauseFocusSession->handle($user, $focusSession);
+
+        return $this->transitionResponse($result, 'No se puede pausar esta sesión de enfoque.');
+    }
+
+    public function resume(Request $request, Workspace $currentWorkspace, int $focusSession, ResumeFocusSession $resumeFocusSession): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if(! $user instanceof User, 403);
+        $result = $resumeFocusSession->handle($user, $focusSession);
+
+        return $this->transitionResponse($result, 'No se puede reanudar esta sesión de enfoque.');
+    }
+
+    private function transitionResponse(?bool $result, string $error): RedirectResponse
+    {
+        abort_if($result === null, 404);
+
+        if (! $result) {
+            return back()->withErrors(['focus_session' => $error]);
+        }
 
         return back();
     }

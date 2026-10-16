@@ -15,6 +15,8 @@ Route::prefix('{current_workspace}')
     ->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::post('focus-sessions', [FocusSessionController::class, 'store'])->name('focus-sessions.store');
+        Route::post('focus-sessions/{focusSession}/pause', [FocusSessionController::class, 'pause'])->name('focus-sessions.pause');
+        Route::post('focus-sessions/{focusSession}/resume', [FocusSessionController::class, 'resume'])->name('focus-sessions.resume');
         Route::get('projects', [ProjectController::class, 'index'])->name('projects.index');
         Route::post('projects', [ProjectController::class, 'store'])->name('projects.store');
         Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');

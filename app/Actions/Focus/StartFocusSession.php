@@ -32,12 +32,17 @@ class StartFocusSession
                     return null;
                 }
 
-                return FocusSession::query()->create([
+                $startedAt = now();
+                $session = FocusSession::query()->create([
                     'user_id' => $user->id,
                     'task_id' => $task?->id,
                     'status' => 'running',
-                    'started_at' => now(),
+                    'started_at' => $startedAt,
                 ]);
+
+                $session->intervals()->create(['started_at' => $startedAt]);
+
+                return $session;
             });
         } catch (QueryException $exception) {
             if ($this->isActiveSessionConflict($exception)) {

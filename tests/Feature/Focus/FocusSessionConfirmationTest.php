@@ -206,6 +206,35 @@ test('legacy open intervals close at start without confirmation and heartbeat ne
     expect($legacy->intervals()->count())->toBe(0);
 });
 
+test('legacy running session without an open interval returns confirmed history and a nullable target', function () {
+    $user = User::factory()->create();
+    $workspace = $user->personalWorkspace();
+    $startedAt = Carbon::parse('2026-10-09 12:00:00');
+    $session = FocusSession::create([
+        'user_id' => $user->id,
+        'status' => 'running',
+        'started_at' => $startedAt,
+        'target_duration_seconds' => null,
+    ]);
+    $session->intervals()->create([
+        'started_at' => $startedAt,
+        'ended_at' => $startedAt->copy()->addSeconds(75),
+        'last_confirmed_at' => $startedAt->copy()->addSeconds(75),
+    ]);
+
+    $this->actingAs($user)
+        ->postJson(route('focus-sessions.heartbeat', [$workspace, $session]))
+        ->assertOk()
+        ->assertJsonPath('status', 'paused')
+        ->assertJsonPath('confirmedAt', null)
+        ->assertJsonPath('intervalStartedAt', null)
+        ->assertJsonPath('confirmedSeconds', 75)
+        ->assertJsonPath('targetDurationSeconds', null);
+
+    expect($session->fresh()->status)->toBe('paused')
+        ->and($session->intervals()->count())->toBe(1);
+});
+
 test('heartbeat is owner scoped and only allowed for running sessions', function () {
     $owner = User::factory()->create();
     $other = User::factory()->create();

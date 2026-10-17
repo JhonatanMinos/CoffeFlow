@@ -21,6 +21,8 @@ type HeartbeatResponse = {
     intervalStartedAt: string | null;
 };
 
+class HeartbeatFailure extends Error {}
+
 const heartbeatIntervalMs = 20_000;
 
 function readXsrfToken(): string | null {
@@ -167,7 +169,9 @@ export function useFocusSessionControls(
             try {
                 const xsrfToken = readXsrfToken();
                 if (!xsrfToken) {
-                    throw new Error('No se encontró el token de seguridad.');
+                    throw new HeartbeatFailure(
+                        'No se encontró el token de seguridad.',
+                    );
                 }
 
                 const response = await fetch(
@@ -190,7 +194,7 @@ export function useFocusSessionControls(
                             preserveUrl: true,
                         });
                     }
-                    throw new Error(heartbeatError(response.status));
+                    throw new HeartbeatFailure(heartbeatError(response.status));
                 }
 
                 const data = (await response.json()) as HeartbeatResponse;
@@ -198,7 +202,7 @@ export function useFocusSessionControls(
                     typeof data.confirmedSeconds !== 'number' ||
                     (data.status !== 'running' && data.status !== 'paused')
                 ) {
-                    throw new Error(
+                    throw new HeartbeatFailure(
                         'El servidor devolvió un estado de sesión inválido.',
                     );
                 }
@@ -226,7 +230,7 @@ export function useFocusSessionControls(
 
                 setHeartbeatEnabled(false);
                 setError(
-                    caught instanceof Error
+                    caught instanceof HeartbeatFailure
                         ? caught.message
                         : 'No se pudo confirmar el tiempo. Recarga para sincronizar la sesión.',
                 );

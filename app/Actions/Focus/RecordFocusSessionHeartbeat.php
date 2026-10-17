@@ -26,7 +26,13 @@ class RecordFocusSessionHeartbeat
             if (! $interval) {
                 $session->update(['status' => 'paused']);
 
-                return ['status' => 'paused', 'confirmedAt' => null, 'intervalStartedAt' => null];
+                return [
+                    'status' => 'paused',
+                    'confirmedAt' => null,
+                    'intervalStartedAt' => null,
+                    'confirmedSeconds' => ActiveFocusSession::confirmedSeconds($session),
+                    'targetDurationSeconds' => $session->target_duration_seconds,
+                ];
             }
 
             $outcome = app(ConfirmFocusSessionInterval::class)->handle($interval, now());

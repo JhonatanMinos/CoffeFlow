@@ -121,9 +121,9 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 ### FC-04 — Integrar controles y verificar el ciclo completo
 
-- [ ] Reutilizar controles de pausa/reanudación y añadir cierre/interrupción y confirmaciones periódicas en ambas superficies.
-- [ ] Mostrar objetivo/tiempo autorizado y errores/recuperación con controles accesibles; no enviar duración contable del cliente.
-- [ ] Comprobar el ciclo en navegador y mantener los flujos de edición/archivo de tareas.
+- [x] Reutilizar controles de pausa/reanudación y añadir cierre/interrupción y confirmaciones periódicas en ambas superficies.
+- [x] Mostrar objetivo/tiempo autorizado y errores/recuperación con controles accesibles; no enviar duración contable del cliente.
+- [x] Comprobar el ciclo en navegador y mantener los flujos de edición/archivo de tareas.
 
 **Ruta:** delegada; integración React/Inertia y verificación independiente.
 
@@ -131,7 +131,7 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Checks:** Focus y suite PHP; `npm run types:check`, `npm run build`, Pint y diff check; Chromium aislado y comprobaciones PostgreSQL pertinentes. No presentar sus pruebas como auditoría exhaustiva o revisión nativa.
 
-**Commit/evidencia:** pendiente.
+**Commit/evidencia:** cortes `f96708c`, `4150921` y corrección `82a335e`; resultados independientes abajo.
 
 **RED/GREEN observados:** antes del cambio de contrato, la tanda de pruebas de Dashboard, Project y heartbeat dio RED (27 pruebas: 24 pasaron y 3 fallaron; dos fallos confirmaron props/campos ausentes y un fixture de URL sin workspace produjo 403, corregido antes de GREEN). Después del cambio, la misma tanda pasó `27/27` (208 aserciones).
 
@@ -141,9 +141,9 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Verificación observada:** Focus `42/42` (232 aserciones); Dashboard + Project `16/16` (149 aserciones); suite PHP `175/175` (845 aserciones); `npm run types:check`, `npm run build`, `vendor/bin/pint --test` y `git diff --check` pasaron. Build advierte que `fontaine` opcional no está instalado, pero termina exitosamente. `npm run check` se reejecutó después de normalizar los archivos UI y este tracker: sigue fallando solo por formato pendiente en cinco rutas preexistentes y ajenas al alcance (`.atl/.skill-registry.cache.json`, `.atl/skill-registry.md`, `odd/tasks/kanban-tasks.md`, `odd/tasks/task-edit-archive.md`, `resources/js/components/tasks/task-card-actions.tsx`); no se modificaron.
 
-**Pendiente:** aceptación manual en Chromium (no ejecutada; queda para QA del padre) y review nativa no disponible (`gentle-ai` no está instalado). Pruebas PHP usaron `APP_KEY` efímera y SQLite en memoria; Wayfinder generado por el build permanece ignorado. El tracker preexistente no rastreado `odd/tasks/focus-session-pause-resume.md` no se modificó ni se staged.
+**Aceptación Chromium:** 16 verificaciones funcionales pasaron en `8d75f40`; retest acotado 4/4 tras `82a335e`, sin hallazgos pendientes en el alcance corregido. Review nativa no disponible (`gentle-ai` no está instalado). Pruebas PHP usaron `APP_KEY` efímera y SQLite en memoria; Wayfinder generado por el build permanece ignorado. El tracker preexistente no rastreado `odd/tasks/focus-session-pause-resume.md` no se modificó ni se staged.
 
-**Corrección acotada basada en QA independiente (retest Chromium pendiente):** la primera pasada del padre en Chromium aprobó 16 verificaciones funcionales, pero encontró dos defectos: el heartbeat de una sesión anterior sin intervalo abierto no devolvía el mismo contrato que la ruta normal, y el aviso de red mostraba el texto técnico `Failed to fetch`. El fixture de QA configuró objetivo de 5 s y gracia de 90 s, envió primero un heartbeat real y luego aceleró timers con un fixture vencido; los procesos quedaron detenidos/limpios. Aún no se repitió Chromium contra esta corrección.
+**Corrección acotada basada en QA independiente:** Chromium aprobó 16 verificaciones funcionales; la verificación independiente de contrato y navegador encontró dos defectos: el heartbeat de una sesión anterior sin intervalo abierto no devolvía el mismo contrato que la ruta normal, y el aviso de red mostraba el texto técnico `Failed to fetch`. El fixture de QA configuró objetivo de 5 s y gracia de 90 s, envió primero un heartbeat real y luego aceleró timers con un fixture vencido; los procesos quedaron detenidos/limpios. Retest Chromium final 4/4: offline localizado y recuperación explícita, mensaje 419, contrato heredado de 75 s/objetivo nulo con estado pausado, heartbeat real con CSRF y cierre exacto completado. No se repitió toda la suite original de 16 casos tras la corrección. Base SQLite nueva: 4 sesiones, 5 intervalos, 0 activas; procesos detenidos.
 
 **RED/GREEN de la corrección:** el nuevo test de ruta HTTP falló primero (1 prueba, 5 aserciones; el total histórico esperado de 75 s faltaba en el JSON), y luego pasó (1/1, 8 aserciones). La recuperación ahora conserva los 75 s históricos y `targetDurationSeconds: null`, devuelve `status: paused` y timestamps de intervalo nulos, sin crear un intervalo. El hook solo expone excepciones de heartbeat tipadas/localizadas; errores de red inesperados se traducen a texto de recuperación en español, manteniendo mensajes HTTP específicos.
 
@@ -155,13 +155,21 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.
 - FC-01 implementado y verificado localmente; no se aplicaron migraciones a una base personal.
-- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente de FC-02 verificado; review nativo no disponible. FC-03 backend cerrado y probado localmente; revisión nativa no disponible. FC-04 integración de código está en commits `f96708c` y `4150921`; falta aceptación manual en Chromium y review nativa si la herramienta queda disponible.
+- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente de FC-02 verificado; review nativo no disponible. FC-03 verificado independientemente y con cinco escenarios PostgreSQL; FC-04 implementado, verificado funcionalmente y corregido tras QA. Desarrollo del incremento cerrado en su alcance local; no publicado. Pendientes de calidad global: formato ajeno conservado, revisión nativa no disponible y aceptación de excepciones de tamaño antes de proponer PR.
 - Native CLI `gentle-ai` no estaba instalado; volver a consultar estado sin cambiar preferencias y registrar indisponibilidad si persiste.
 
 ## Verificación independiente de FC-01
 
 - Código `04490f1`; tracker inicial `5dfe6be`. Sin hallazgos bloqueantes; comprobación estructural del padre y diff check correctos.
 - Verificador independiente reprodujo Focus 16/105 y suite PHP 147/676; Pint y diff check correctos.
-- Pendiente: pruebas PostgreSQL de concurrencia y revisión nativa (CLI no disponible). SQLite no demuestra carreras PostgreSQL.
+- PostgreSQL cubierto después en FC-02 (4 escenarios) y FC-03 (5 escenarios), con esperas reales y procesos separados; no es prueba exhaustiva. Revisión nativa no disponible.
 - Cobertura adicional para FC-02/03: reanudación por propietario ajeno, estados terminales y rechazo de intervalo abierto duplicado.
 - Cortes locales previstos: comportamiento FC-01 `806daf8..04490f1` (323 líneas); documentación `04490f1..5dfe6be` (124 líneas). No hay PR publicados.
+
+## Cierre de verificación y límites
+
+- Corrección final `82a335e`: verificador independiente reprodujo Focus 43/240, suite PHP 176/853, TypeScript, checks de formato PHP/JS acotados y diff correctos; build del trabajador exitoso con aviso opcional de fontaine.
+- Chromium: 16 casos iniciales y 4 retests acotados, no una suite de 20 casos ejecutada sobre la misma revisión. Evidencia temporal en los informes QA de focus-ui-browser y su subdirectorio retest. CSRF activo; objetivo QA 5 s y gracia 90 s; primer heartbeat real, luego timers acelerados y recuperación vencida mediante fixture.
+- PostgreSQL FC-03: cinco carreras verificadas, resultado y fecha terminal estables, sesión activa liberada. Primera tanda excedió un límite global de 10 s (124); escenarios individuales posteriores pasaron con límites por proceso. Servidor QA detenido.
+- Global Pint falla en ProjectController por cuatro cambios de espacios `fn` no atribuibles, preservados sin stage; global npm check falla en las cinco rutas preexistentes documentadas. No afirmar árbol limpio ni todos los checks globales correctos.
+- Siguiente paso de entrega: resolver el formato conservado y aceptar o revisar los cortes de 435 y 574 líneas antes de publicar. `stacked-to-main` sigue elegido; no hay autorización ni operación de push, PR o merge.

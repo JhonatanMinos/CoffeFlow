@@ -1,5 +1,6 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import { CircleDashed, Plus } from 'lucide-react';
+import FocusSessionControls from '@/components/focus/focus-session-controls';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -9,12 +10,7 @@ import { Label } from '@/components/ui/label';
 import TaskCardActions from '@/components/tasks/task-card-actions';
 import { index, show } from '@/routes/projects';
 import type { Board } from '@/types';
-
-type ActiveFocusSession = {
-    id: number;
-    taskId: number | null;
-    status: 'running' | 'paused';
-};
+import type { ActiveFocusSession } from '@/hooks/use-focus-session-controls';
 
 type ProjectDetails = {
     id: number;
@@ -72,15 +68,10 @@ export default function ProjectShow({
                     <Badge variant="secondary">Kanban</Badge>
                 </div>
 
-                {activeFocusSession ? (
-                    <p
-                        role="status"
-                        aria-live="polite"
-                        className="text-sm font-medium"
-                    >
-                        Ya tienes una sesión de enfoque activa.
-                    </p>
-                ) : null}
+                <FocusSessionControls
+                    activeSession={activeFocusSession}
+                    workspaceSlug={currentWorkspace?.slug ?? null}
+                />
 
                 <section
                     aria-label={`Tablero ${board.name}`}
@@ -116,10 +107,14 @@ export default function ProjectShow({
                                                 </p>
                                             ) : null}
                                             {taskStoreUrl &&
-                                            (canEditTasks || canArchiveTasks) ? (
+                                            (canEditTasks ||
+                                                canArchiveTasks) ? (
                                                 <TaskCardActions
                                                     task={task}
-                                                    currentWorkspace={currentWorkspace?.slug ?? null}
+                                                    currentWorkspace={
+                                                        currentWorkspace?.slug ??
+                                                        null
+                                                    }
                                                     project={project.slug}
                                                     canEdit={canEditTasks}
                                                     canArchive={canArchiveTasks}

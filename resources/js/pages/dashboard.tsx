@@ -1,17 +1,13 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import FocusSessionControls from '@/components/focus/focus-session-controls';
 import PendingInvitationsModal from '@/components/pending-invitations-modal';
 import InputError from '@/components/input-error';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import { Button } from '@/components/ui/button';
 import { dashboard } from '@/routes';
 import type { DashboardInvitation } from '@/types';
-
-type ActiveFocusSession = {
-    id: number;
-    taskId: number | null;
-    status: 'running' | 'paused';
-};
+import type { ActiveFocusSession } from '@/hooks/use-focus-session-controls';
 
 type Props = {
     pendingInvitations?: DashboardInvitation[];
@@ -40,15 +36,10 @@ export default function Dashboard({
             />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <section aria-label="Enfoque" className="grid gap-3">
-                    {activeFocusSession ? (
-                        <p
-                            role="status"
-                            aria-live="polite"
-                            className="text-sm font-medium"
-                        >
-                            Ya tienes una sesión de enfoque activa.
-                        </p>
-                    ) : null}
+                    <FocusSessionControls
+                        activeSession={activeFocusSession}
+                        workspaceSlug={currentWorkspace?.slug ?? null}
+                    />
                     {focusSessionUrl ? (
                         <Form
                             action={focusSessionUrl}

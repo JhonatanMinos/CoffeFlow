@@ -10,6 +10,7 @@ use App\Actions\Focus\ResumeFocusSession;
 use App\Actions\Focus\StartFocusSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Focus\StoreFocusSessionRequest;
+use App\Models\FocusSession;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Workspace;
@@ -88,6 +89,16 @@ class FocusSessionController extends Controller
         abort_if(! $user instanceof User, 403);
         $result = $finishFocusSession->handle($user, $focusSession);
 
+        if ($result === true) {
+            $status = FocusSession::query()
+                ->where('user_id', $user->id)
+                ->whereKey($focusSession)
+                ->value('status');
+            $message = $status === 'completed' ? 'Sesión completada.' : 'Sesión interrumpida.';
+            Inertia::flash('focusSessionResult', $status);
+            Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        }
+
         return $this->transitionResponse($result, 'Solo se puede finalizar una sesión en ejecución.');
     }
 
@@ -96,6 +107,16 @@ class FocusSessionController extends Controller
         $user = $request->user();
         abort_if(! $user instanceof User, 403);
         $result = $interruptFocusSession->handle($user, $focusSession);
+
+        if ($result === true) {
+            $status = FocusSession::query()
+                ->where('user_id', $user->id)
+                ->whereKey($focusSession)
+                ->value('status');
+            $message = $status === 'completed' ? 'La sesión ya estaba completada.' : 'Sesión interrumpida.';
+            Inertia::flash('focusSessionResult', $status);
+            Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        }
 
         return $this->transitionResponse($result, 'Solo se puede interrumpir una sesión activa.');
     }

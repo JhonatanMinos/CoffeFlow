@@ -33,6 +33,7 @@ La rama actual permite iniciar Focus, pero no cerrar su ciclo. Pausa/reanudació
 | Recuperación provisional | Ventana configurable de 90 segundos para tolerar demora de contacto; no sumar esa ventana como tiempo perdido. |
 | Contacto fresco | Heartbeat o comando explícito autorizado puede confirmar hasta la hora del servidor si no se excedió la ventana. |
 | Contacto vencido | Cerrar el tramo en la última confirmación, sin unir el hueco; requerir reanudación explícita o terminar como interrumpida. |
+| Finalización vencida | Si la confirmación del tramo activo expiró, finalizar siempre como `interrupted`, aunque intervalos anteriores ya hubieran alcanzado el objetivo. La recuperación requiere reanudación explícita; el comando de interrupción también conserva el resultado interrumpido. |
 | Navegador oculto | No equivale a falta de enfoque: permitir trabajo en IDE/pestaña de fondo; confirmar contacto, no inferir atención. |
 | Datos anteriores | No asignar objetivo retrospectivo: objetivo nulo permite interrumpir, no acreditar un Pomodoro completo. Conservar intervalos cerrados históricos; no inventar duración del tramo abierto sin confirmación. |
 
@@ -90,19 +91,19 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **RED/GREEN observados:** antes de implementar, las nuevas pruebas fallaron al observar objetivo nulo/configuración no validada, heartbeat sin ruta y límites de pausa/reloj incorrectos (9 pruebas: 1 pasó, 4 fallaron y 4 tuvieron error). Tras implementar y normalizar: Focus `26/26` (155 aserciones); suite PHP `157/157` (726 aserciones); `vendor/bin/pint --test` y `git diff --check` pasaron. Pruebas con `APP_KEY` efímera y SQLite en memoria. Intervalos heredados sin confirmación se cierran inmediatamente en `started_at`, aunque estén dentro de la gracia.
 
-**Corrección de configuración tras revisión independiente:** validación del valor crudo de `env()` antes de conversión; acepta defaults y cadenas enteras canónicas positivas, rechaza booleanos, decimales, prefijos numéricos con sufijo y desbordamiento. Prueba de carga real de `config/focus.php` restaurando el entorno: RED observó que valores inválidos se truncaban/aceptaban; GREEN tras corregir: Focus `27/27` (163 aserciones), suite PHP `158/158` (734 aserciones), Pint y diff check pasaron. PostgreSQL sigue pendiente.
+**Corrección de configuración tras revisión independiente:** validación del valor crudo de `env()` antes de conversión; acepta defaults y cadenas enteras canónicas positivas, rechaza booleanos, decimales, prefijos numéricos con sufijo y desbordamiento. Prueba de carga real de `config/focus.php` restaurando el entorno: RED observó que valores inválidos se truncaban/aceptaban; GREEN tras corregir: Focus `27/27` (163 aserciones), suite PHP `158/158` (734 aserciones), Pint y diff check pasaron. Corrección verificada independientemente: Focus 27/163, suite PHP 158/734, Pint y diff correctos.
 
 **Corte de corrección:** 97 líneas autorales (93 de código/pruebas y 4 de documentación), aislado del work unit FC-02 anterior. **Commit/evidencia:** `7754197` (`fix(focus): validate raw duration environment values`).
 
-**Alcance de concurrencia:** los comandos adquieren primero el lock de sesión y después el intervalo; la restricción de intervalo abierto duplicado se ejercitó en SQLite. PostgreSQL y carreras concurrentes reales quedan pendientes; SQLite no demuestra su comportamiento. No se ejecutó migración contra una base persistente. La revisión nativa sigue no disponible mientras no exista `gentle-ai` en el entorno.
+**Alcance de concurrencia:** los comandos adquieren primero el lock de sesión y después el intervalo; la restricción de intervalo abierto duplicado se ejercitó en SQLite. PostgreSQL 17 aislado: cuatro órdenes concurrentes verificados con procesos separados, esperas Lock y pg_blocking_pids: heartbeat→pausa, pausa→heartbeat, doble reanudación y heartbeat vencido→recuperación. Límites y cantidades exactos correctos; duplicado abierto rechazado con 23505. Solo se migró una base QA nueva desechable; servidor propio detenido. No es una prueba exhaustiva ni de cierre terminal. La revisión nativa sigue no disponible mientras no exista `gentle-ai` en el entorno.
 
 **Conteo de corte:** 379 líneas autorales (363 de código/pruebas y 16 de documentación); FC-02 queda bajo el presupuesto orientativo de 400. **Commit/evidencia:** `62a3891` (`feat(focus): confirm verified session activity`).
 
 ### FC-03 — Finalizar e interrumpir de forma atómica
 
-- [ ] Implementar comandos de cierre y rutas protegidas con resultado terminal idempotente.
-- [ ] Completar solo una sesión en ejecución con objetivo verificable alcanzado; cerrar antes como interrumpida.
-- [ ] Conservar tiempo confirmado al interrumpir activa/pausada y liberar la sesión activa sin tocar tareas ni XP.
+- [x] Implementar comandos de cierre y rutas protegidas con resultado terminal idempotente.
+- [x] Completar solo una sesión en ejecución con objetivo verificable alcanzado; cerrar antes como interrumpida.
+- [x] Conservar tiempo confirmado al interrumpir activa/pausada y liberar la sesión activa sin tocar tareas ni XP.
 
 **Ruta:** delegada; acciones/controlador/rutas y pruebas de transiciones.
 
@@ -110,7 +111,13 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Checks:** RED/GREEN de transiciones, permisos, límites y reintentos en Focus; suite PHP, Pint y diff check.
 
-**Commit/evidencia:** pendiente.
+**Ruta y rollback:** un work unit backend cohesivo. Revertir únicamente los endpoints de finalización/interrupción, las acciones de cierre, sus pruebas y esta entrada del tracker; no alterar la pausa/reanudación ni el tracker preexistente de FC-01/02.
+
+**Decisión de cierre vencido:** un `finish` sobre sesión en ejecución solo acredita el tramo vigente cuando su última confirmación está dentro de la gracia. Si expiró, el tramo se cierra en esa última confirmación y el resultado es siempre `interrupted`, incluso cuando el tiempo cerrado de intervalos anteriores ya alcanzaba el objetivo. Se elige recuperación explícita mediante reanudación para evitar certificar concentración durante un hueco no confirmado; no es una política definitiva de producto.
+
+**RED/GREEN observados:** RED inicial de las pruebas de FC-03: 13 pruebas, 0 pasaron, 13 errores; 12 llegaron a observar que faltaban las rutas `finish`/`interrupt` y una detectó un tipo de fecha incompatible en el helper de prueba, corregido antes de GREEN. Tras implementar, Focus closure `15/15` (66 aserciones), Focus `42/42` (229 aserciones), suite PHP `173/173` (800 aserciones), Pint `--test` y `git diff --check` pasaron. `APP_KEY` efímera y SQLite en memoria; sin migración a base persistente. La verificación de PostgreSQL corresponde a FC-02 y no demuestra concurrencia de cierre; review nativo no disponible.
+
+**Conteo de corte y commit/evidencia:** `ff1eef8` (`feat(focus): finish and interrupt verified sessions`), 435 líneas autorales (435 agregadas, 0 eliminadas). Un solo corte cohesivo quedó 35 líneas sobre el presupuesto orientativo: acciones compartidas, rutas y sus pruebas terminales forman una unidad que no conviene separar. Recomendar `size:exception` si se propone como PR; no se creó ni publicó un PR.
 
 ### FC-04 — Integrar controles y verificar el ciclo completo
 
@@ -130,7 +137,7 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.
 - FC-01 implementado y verificado localmente; no se aplicaron migraciones a una base personal.
-- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente y review nativo siguen pendientes. Siguiente paso: FC-03 (finalización e interrupción).
+- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente de FC-02 verificado; review nativo no disponible. FC-03 backend cerrado y probado localmente; revisión nativa no disponible. Siguiente paso: FC-04 (controles de interfaz y verificación del ciclo).
 - Native CLI `gentle-ai` no estaba instalado; volver a consultar estado sin cambiar preferencias y registrar indisponibilidad si persiste.
 
 ## Verificación independiente de FC-01

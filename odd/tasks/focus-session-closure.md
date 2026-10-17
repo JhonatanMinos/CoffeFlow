@@ -23,19 +23,19 @@ La rama actual permite iniciar Focus, pero no cerrar su ciclo. Pausa/reanudació
 
 ## Reglas y decisión técnica provisional
 
-| Tema | Tratamiento |
-| --- | --- |
-| Regla confirmada | `completed` requiere objetivo alcanzado; cierre anticipado conserva tiempo verificable como `interrupted`. |
-| Transiciones | Completar solo desde `running`; interrumpir desde `running` o `paused`; ningún estado terminal se reanuda. |
-| Objetivo | Snapshot `target_duration_seconds` al iniciar; default técnico configurable de 1500 segundos, no límite fijo de negocio. |
-| Auditoría | `ended_at` de sesión se escribe una vez con la transición terminal; no altera `started_at` ni autoría. |
-| Confirmación | Backend registra `last_confirmed_at` del intervalo; nunca acepta segundos arbitrarios del navegador. |
-| Recuperación provisional | Ventana configurable de 90 segundos para tolerar demora de contacto; no sumar esa ventana como tiempo perdido. |
-| Contacto fresco | Heartbeat o comando explícito autorizado puede confirmar hasta la hora del servidor si no se excedió la ventana. |
-| Contacto vencido | Cerrar el tramo en la última confirmación, sin unir el hueco; requerir reanudación explícita o terminar como interrumpida. |
-| Finalización vencida | Si la confirmación del tramo activo expiró, finalizar siempre como `interrupted`, aunque intervalos anteriores ya hubieran alcanzado el objetivo. La recuperación requiere reanudación explícita; el comando de interrupción también conserva el resultado interrumpido. |
-| Navegador oculto | No equivale a falta de enfoque: permitir trabajo en IDE/pestaña de fondo; confirmar contacto, no inferir atención. |
-| Datos anteriores | No asignar objetivo retrospectivo: objetivo nulo permite interrumpir, no acreditar un Pomodoro completo. Conservar intervalos cerrados históricos; no inventar duración del tramo abierto sin confirmación. |
+| Tema                     | Tratamiento                                                                                                                                                                                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Regla confirmada         | `completed` requiere objetivo alcanzado; cierre anticipado conserva tiempo verificable como `interrupted`.                                                                                                                                                               |
+| Transiciones             | Completar solo desde `running`; interrumpir desde `running` o `paused`; ningún estado terminal se reanuda.                                                                                                                                                               |
+| Objetivo                 | Snapshot `target_duration_seconds` al iniciar; default técnico configurable de 1500 segundos, no límite fijo de negocio.                                                                                                                                                 |
+| Auditoría                | `ended_at` de sesión se escribe una vez con la transición terminal; no altera `started_at` ni autoría.                                                                                                                                                                   |
+| Confirmación             | Backend registra `last_confirmed_at` del intervalo; nunca acepta segundos arbitrarios del navegador.                                                                                                                                                                     |
+| Recuperación provisional | Ventana configurable de 90 segundos para tolerar demora de contacto; no sumar esa ventana como tiempo perdido.                                                                                                                                                           |
+| Contacto fresco          | Heartbeat o comando explícito autorizado puede confirmar hasta la hora del servidor si no se excedió la ventana.                                                                                                                                                         |
+| Contacto vencido         | Cerrar el tramo en la última confirmación, sin unir el hueco; requerir reanudación explícita o terminar como interrumpida.                                                                                                                                               |
+| Finalización vencida     | Si la confirmación del tramo activo expiró, finalizar siempre como `interrupted`, aunque intervalos anteriores ya hubieran alcanzado el objetivo. La recuperación requiere reanudación explícita; el comando de interrupción también conserva el resultado interrumpido. |
+| Navegador oculto         | No equivale a falta de enfoque: permitir trabajo en IDE/pestaña de fondo; confirmar contacto, no inferir atención.                                                                                                                                                       |
+| Datos anteriores         | No asignar objetivo retrospectivo: objetivo nulo permite interrumpir, no acreditar un Pomodoro completo. Conservar intervalos cerrados históricos; no inventar duración del tramo abierto sin confirmación.                                                              |
 
 La recuperación anterior es una decisión técnica conservadora y provisional, no una política de producto definitivamente aprobada. Puede pausar/interrumpir ante demoras reales o throttling; la ventana debe ser configurable y el efecto explicarse en UI. Nunca acreditar `last_confirmed_at + grace`: podría completar un objetivo con tiempo no confirmado. Las confirmaciones prueban contacto del cliente, no atención humana.
 
@@ -133,11 +133,21 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Commit/evidencia:** pendiente.
 
+**RED/GREEN observados:** antes del cambio de contrato, la tanda de pruebas de Dashboard, Project y heartbeat dio RED (27 pruebas: 24 pasaron y 3 fallaron; dos fallos confirmaron props/campos ausentes y un fixture de URL sin workspace produjo 403, corregido antes de GREEN). Después del cambio, la misma tanda pasó `27/27` (208 aserciones).
+
+**Corte backend y evidencia:** `f96708c` (`feat(focus): expose confirmed session state`), 174 líneas autorales. La consulta compartida serializa solo la sesión activa del propietario, el objetivo nullable, los segundos de intervalos confirmados y los límites del intervalo vigente; heartbeat devuelve el total confirmado del servidor. RED/GREEN incluye pausa y sesión antigua sin objetivo ni intervalo actual, tiempo confirmado de intervalos cerrados/abiertos y exclusión de otra persona.
+
+**Corte de interfaz y evidencia:** `4150921` (`feat(focus): integrate session controls across pages`), 574 líneas cambiadas (542 agregadas, 32 eliminadas). Un solo corte cohesivo reutiliza el hook y los controles accesibles en Dashboard y tablero; incluye polling limitado con CSRF, recuperación explícita y cierre terminal comunicado por el servidor. Si se propone como PR, recomendar `size:exception`: separar hook/componente de ambas integraciones produciría cortes incompletos. No se creó ni publicó un PR.
+
+**Verificación observada:** Focus `42/42` (232 aserciones); Dashboard + Project `16/16` (149 aserciones); suite PHP `175/175` (845 aserciones); `npm run types:check`, `npm run build`, `vendor/bin/pint --test` y `git diff --check` pasaron. Build advierte que `fontaine` opcional no está instalado, pero termina exitosamente. `npm run check` se reejecutó después de normalizar los archivos UI y este tracker: sigue fallando solo por formato pendiente en cinco rutas preexistentes y ajenas al alcance (`.atl/.skill-registry.cache.json`, `.atl/skill-registry.md`, `odd/tasks/kanban-tasks.md`, `odd/tasks/task-edit-archive.md`, `resources/js/components/tasks/task-card-actions.tsx`); no se modificaron.
+
+**Pendiente:** aceptación manual en Chromium (no ejecutada; queda para QA del padre) y review nativa no disponible (`gentle-ai` no está instalado). Pruebas PHP usaron `APP_KEY` efímera y SQLite en memoria; Wayfinder generado por el build permanece ignorado. El tracker preexistente no rastreado `odd/tasks/focus-session-pause-resume.md` no se modificó ni se staged.
+
 ## Progreso y próximo paso
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.
 - FC-01 implementado y verificado localmente; no se aplicaron migraciones a una base personal.
-- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente de FC-02 verificado; review nativo no disponible. FC-03 backend cerrado y probado localmente; revisión nativa no disponible. Siguiente paso: FC-04 (controles de interfaz y verificación del ciclo).
+- Modalidad `stacked-to-main` confirmada. FC-01 verificado independientemente: Focus 16 pruebas/105 aserciones; suite PHP 147/676; Pint y diff correctos. FC-02 backend implementado y verificado; PostgreSQL concurrente de FC-02 verificado; review nativo no disponible. FC-03 backend cerrado y probado localmente; revisión nativa no disponible. FC-04 integración de código está en commits `f96708c` y `4150921`; falta aceptación manual en Chromium y review nativa si la herramienta queda disponible.
 - Native CLI `gentle-ai` no estaba instalado; volver a consultar estado sin cambiar preferencias y registrar indisponibilidad si persiste.
 
 ## Verificación independiente de FC-01

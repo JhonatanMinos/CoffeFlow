@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Focus;
 
+use App\Actions\Focus\FinishFocusSession;
+use App\Actions\Focus\InterruptFocusSession;
 use App\Actions\Focus\PauseFocusSession;
 use App\Actions\Focus\RecordFocusSessionHeartbeat;
 use App\Actions\Focus\ResumeFocusSession;
@@ -78,6 +80,24 @@ class FocusSessionController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    public function finish(Request $request, Workspace $currentWorkspace, int $focusSession, FinishFocusSession $finishFocusSession): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if(! $user instanceof User, 403);
+        $result = $finishFocusSession->handle($user, $focusSession);
+
+        return $this->transitionResponse($result, 'Solo se puede finalizar una sesión en ejecución.');
+    }
+
+    public function interrupt(Request $request, Workspace $currentWorkspace, int $focusSession, InterruptFocusSession $interruptFocusSession): RedirectResponse
+    {
+        $user = $request->user();
+        abort_if(! $user instanceof User, 403);
+        $result = $interruptFocusSession->handle($user, $focusSession);
+
+        return $this->transitionResponse($result, 'Solo se puede interrumpir una sesión activa.');
     }
 
     private function transitionResponse(?bool $result, string $error): RedirectResponse

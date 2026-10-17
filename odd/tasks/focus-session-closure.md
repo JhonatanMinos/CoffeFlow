@@ -143,6 +143,14 @@ La recuperación anterior es una decisión técnica conservadora y provisional, 
 
 **Pendiente:** aceptación manual en Chromium (no ejecutada; queda para QA del padre) y review nativa no disponible (`gentle-ai` no está instalado). Pruebas PHP usaron `APP_KEY` efímera y SQLite en memoria; Wayfinder generado por el build permanece ignorado. El tracker preexistente no rastreado `odd/tasks/focus-session-pause-resume.md` no se modificó ni se staged.
 
+**Corrección acotada basada en QA independiente (retest Chromium pendiente):** la primera pasada del padre en Chromium aprobó 16 verificaciones funcionales, pero encontró dos defectos: el heartbeat de una sesión anterior sin intervalo abierto no devolvía el mismo contrato que la ruta normal, y el aviso de red mostraba el texto técnico `Failed to fetch`. El fixture de QA configuró objetivo de 5 s y gracia de 90 s, envió primero un heartbeat real y luego aceleró timers con un fixture vencido; los procesos quedaron detenidos/limpios. Aún no se repitió Chromium contra esta corrección.
+
+**RED/GREEN de la corrección:** el nuevo test de ruta HTTP falló primero (1 prueba, 5 aserciones; el total histórico esperado de 75 s faltaba en el JSON), y luego pasó (1/1, 8 aserciones). La recuperación ahora conserva los 75 s históricos y `targetDurationSeconds: null`, devuelve `status: paused` y timestamps de intervalo nulos, sin crear un intervalo. El hook solo expone excepciones de heartbeat tipadas/localizadas; errores de red inesperados se traducen a texto de recuperación en español, manteniendo mensajes HTTP específicos.
+
+**Verificación de corrección:** Focus `43/43` (240 aserciones), suite PHP `176/176` (853 aserciones), `npm run types:check`, `npm run build`, check/lint Vite+ limitado al hook y `git diff --check` pasaron. Build conserva el aviso opcional de `fontaine`. Pint limitado a los archivos PHP cambiados pasó; `vendor/bin/pint --test` global falla solo por el diff preexistente y ajeno en `app/Http/Controllers/Projects/ProjectController.php`, preservado intacto. El diff observado son cuatro cambios de espacio en cierres `fn (` → `fn(`; no se afirma quién lo produjo ni se normalizó.
+
+**Commit de corrección:** `82a335e` (`fix(focus): keep heartbeat recovery responses consistent`), 49 líneas cambiadas (44 agregadas, 5 eliminadas). Archivos comprometidos: acción heartbeat, hook de controles y test de contrato; ninguna ruta ajena fue staged.
+
 ## Progreso y próximo paso
 
 - Exploración y diseño acotados completados; usuario confirmó la regla de objetivo antes de completar.

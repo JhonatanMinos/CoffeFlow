@@ -4,11 +4,12 @@ namespace App\Actions\Focus;
 
 use App\Models\FocusSession;
 use App\Models\User;
+use App\Queries\Focus\ActiveFocusSession;
 use Illuminate\Support\Facades\DB;
 
 class RecordFocusSessionHeartbeat
 {
-    /** @return array{status: string, confirmedAt: ?string, intervalStartedAt: ?string} | null */
+    /** @return array{status: string, confirmedAt: ?string, intervalStartedAt: ?string, confirmedSeconds?: int, targetDurationSeconds?: int|null} | null */
     public function handle(User $user, int $sessionId): ?array
     {
         return DB::transaction(function () use ($user, $sessionId): ?array {
@@ -39,6 +40,8 @@ class RecordFocusSessionHeartbeat
                 'status' => $outcome === ConfirmFocusSessionInterval::EXPIRED ? 'paused' : 'running',
                 'confirmedAt' => ($interval->last_confirmed_at ?? $interval->started_at)->toIso8601String(),
                 'intervalStartedAt' => $interval->started_at->toIso8601String(),
+                'confirmedSeconds' => ActiveFocusSession::confirmedSeconds($session),
+                'targetDurationSeconds' => $session->target_duration_seconds,
             ];
         });
     }

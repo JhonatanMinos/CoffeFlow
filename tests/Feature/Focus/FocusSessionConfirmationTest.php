@@ -116,6 +116,7 @@ test('focus configuration validates raw environment values before conversion', f
 
 test('fresh heartbeat confirms to server time and accepts exact grace boundary only', function () {
     config(['focus.contact_grace_seconds' => 90]);
+    config(['focus.target_duration_seconds' => 1800]);
     $user = User::factory()->create();
     $workspace = $user->personalWorkspace();
     $startedAt = Carbon::parse('2026-10-10 12:00:00');
@@ -126,7 +127,12 @@ test('fresh heartbeat confirms to server time and accepts exact grace boundary o
     Carbon::setTestNow($startedAt->copy()->addSeconds(90));
     $response = $this->actingAs($user)->postJson(route('focus-sessions.heartbeat', [$workspace, $session]), ['seconds' => 999999, 'timestamp' => '2099-01-01']);
 
-    $response->assertOk()->assertJsonPath('status', 'running')->assertJsonPath('confirmedAt', '2026-10-10T12:01:30+00:00');
+    $response->assertOk()
+        ->assertJsonPath('status', 'running')
+        ->assertJsonPath('confirmedAt', '2026-10-10T12:01:30+00:00')
+        ->assertJsonPath('confirmedSeconds', 90)
+        ->assertJsonPath('targetDurationSeconds', 1800)
+        ->assertJsonPath('intervalStartedAt', '2026-10-10T12:00:00+00:00');
     expect($session->intervals()->firstOrFail()->fresh()->last_confirmed_at?->equalTo(Carbon::now()))->toBeTrue();
 });
 

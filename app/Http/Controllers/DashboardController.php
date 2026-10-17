@@ -2,22 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FocusSession;
 use App\Models\WorkspaceInvitation;
+use App\Queries\Focus\ActiveFocusSession as ActiveFocusSessionQuery;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, ActiveFocusSessionQuery $activeFocusSessionQuery): Response
     {
         $email = strtolower($request->user()->email);
-        $activeFocusSession = FocusSession::query()
-            ->select(['id', 'task_id', 'status'])
-            ->where('user_id', $request->user()->id)
-            ->whereIn('status', ['running', 'paused'])
-            ->first();
+        $activeFocusSession = $activeFocusSessionQuery->forOwner($request->user());
 
         $pendingInvitations = WorkspaceInvitation::query()
             ->with(['inviter', 'workspace'])
@@ -39,11 +35,7 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'pendingInvitations' => $pendingInvitations,
-            'activeFocusSession' => $activeFocusSession ? [
-                'id' => $activeFocusSession->id,
-                'taskId' => $activeFocusSession->task_id,
-                'status' => $activeFocusSession->status,
-            ] : null,
+            'activeFocusSession' => $activeFocusSession,
         ]);
     }
 }

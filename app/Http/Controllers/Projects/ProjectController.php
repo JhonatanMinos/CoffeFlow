@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Projects;
 use App\Actions\Projects\CreateProject;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Projects\StoreProjectRequest;
-use App\Models\FocusSession;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Workspace;
+use App\Queries\Focus\ActiveFocusSession as ActiveFocusSessionQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -63,7 +63,7 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function show(Request $request): Response
+    public function show(Request $request, ActiveFocusSessionQuery $activeFocusSessionQuery): Response
     {
         $workspace = $this->currentWorkspace($request);
         $projectSlug = $request->route('project');
@@ -87,11 +87,7 @@ class ProjectController extends Controller
             ])
             ->firstOrFail();
 
-        $activeFocusSession = FocusSession::query()
-            ->select(['id', 'task_id', 'status'])
-            ->where('user_id', $request->user()->id)
-            ->whereIn('status', ['running', 'paused'])
-            ->first();
+        $activeFocusSession = $activeFocusSessionQuery->forOwner($request->user());
 
         return Inertia::render('projects/show', [
             'project' => [
@@ -123,11 +119,7 @@ class ProjectController extends Controller
             'canEditTasks' => Gate::allows('update', [Task::class, $projectModel]),
             'canArchiveTasks' => Gate::allows('archive', [Task::class, $projectModel]),
             'canCompleteTasks' => Gate::allows('complete', [Task::class, $projectModel]),
-            'activeFocusSession' => $activeFocusSession ? [
-                'id' => $activeFocusSession->id,
-                'taskId' => $activeFocusSession->task_id,
-                'status' => $activeFocusSession->status,
-            ] : null,
+            'activeFocusSession' => $activeFocusSession,
         ]);
     }
 

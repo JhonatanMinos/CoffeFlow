@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\WorkspaceRole;
+use App\Models\FocusSession;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceInvitation;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to the login page', function () {
@@ -23,6 +25,49 @@ test('authenticated users can visit the dashboard', function () {
         ->get(route('dashboard'));
 
     $response->assertOk();
+});
+
+test('dashboard exposes only the owners confirmed focus time and nullable target', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $startedAt = Carbon::parse('2026-10-16 12:00:00');
+    $session = FocusSession::create([
+        'user_id' => $owner->id,
+        'status' => 'running',
+        'started_at' => $startedAt,
+        'target_duration_seconds' => null,
+    ]);
+    $session->intervals()->create([
+        'started_at' => $startedAt,
+        'ended_at' => $startedAt->copy()->addSeconds(30),
+        'last_confirmed_at' => $startedAt->copy()->addSeconds(30),
+    ]);
+    $session->intervals()->create([
+        'started_at' => $startedAt->copy()->addMinute(),
+        'last_confirmed_at' => $startedAt->copy()->addSeconds(80),
+    ]);
+    FocusSession::create([
+        'user_id' => $other->id,
+        'status' => 'running',
+        'started_at' => $startedAt,
+        'target_duration_seconds' => 1500,
+    ])->intervals()->create([
+        'started_at' => $startedAt,
+        'last_confirmed_at' => $startedAt->copy()->addMinutes(10),
+    ]);
+
+    $this->actingAs($owner)->get(route('dashboard', $owner->personalWorkspace()))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('activeFocusSession.id', $session->id)
+            ->where('activeFocusSession.status', 'running')
+            ->where('activeFocusSession.targetDurationSeconds', null)
+            ->where('activeFocusSession.confirmedSeconds', 50)
+            ->where('activeFocusSession.intervalStartedAt', $startedAt->copy()->addMinute()->toIso8601String())
+            ->where('activeFocusSession.lastConfirmedAt', $startedAt->copy()->addSeconds(80)->toIso8601String())
+            ->missing('activeFocusSession.userId')
+            ->missing('activeFocusSession.otherUserId'),
+        );
 });
 
 test('dashboard includes pending invitations for the authenticated user', function () {

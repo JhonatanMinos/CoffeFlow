@@ -1,9 +1,11 @@
 <?php
 
 use App\Enums\WorkspaceRole;
+use App\Models\FocusSession;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('workspace members only see projects from the requested workspace', function () {
@@ -143,6 +145,36 @@ test('workspace members can view the configured project board', function () {
         ->where('board.columns.0.category', 'todo')
         ->where('board.columns.3.category', 'done'),
     );
+});
+
+test('project board receives the owners confirmed focus state', function () {
+    $owner = User::factory()->create();
+    $workspace = $owner->personalWorkspace();
+    $this->actingAs($owner)->post(route('projects.store', $workspace), ['name' => 'Producto activo']);
+    $startedAt = Carbon::parse('2026-10-16 12:00:00');
+    $session = FocusSession::create([
+        'user_id' => $owner->id,
+        'status' => 'paused',
+        'started_at' => $startedAt,
+        'target_duration_seconds' => 1500,
+    ]);
+    $session->intervals()->create([
+        'started_at' => $startedAt,
+        'ended_at' => $startedAt->copy()->addSeconds(45),
+        'last_confirmed_at' => $startedAt->copy()->addSeconds(45),
+    ]);
+
+    $this->actingAs($owner)->get(route('projects.show', [$workspace, 'producto-activo']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('activeFocusSession.id', $session->id)
+            ->where('activeFocusSession.taskId', null)
+            ->where('activeFocusSession.status', 'paused')
+            ->where('activeFocusSession.targetDurationSeconds', 1500)
+            ->where('activeFocusSession.confirmedSeconds', 45)
+            ->where('activeFocusSession.intervalStartedAt', null)
+            ->where('activeFocusSession.lastConfirmedAt', $startedAt->copy()->addSeconds(45)->toIso8601String()),
+        );
 });
 
 test('a project cannot be read through a different workspace', function () {
